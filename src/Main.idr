@@ -117,36 +117,56 @@ lbl:  // place, where we go to. So-called Sink
 
 -}
 
-data Program : (comeFroms : SortedNatList) -> (sinkCount : Nat) -> (len : Nat) -> (isCorrect : Bool) ->
-               AllLTE len comeFroms => Type where
-  Exit : Program [] sinkCount 1 True
-  Abort : Program [] sinkCount 1 False
-  NoOp : Program comeFroms sinkCount len isCorrect @{weakenAllLTELimit prf} ->  -- continuation
-         Program comeFroms sinkCount (S len) isCorrect @{prf}  -- AllLTE (S len) comeFroms
+{-
+Some notes:
+
+* Cond versions of goto instructions allow to either jump or do nothing depending on some condition (which is not important here). These
+  instructions are the essence of branching if one takes a close look at any CFG
+
+Some todos:
+* It is highly likely to be possible to combine cond versions with original ones in a more convenient way than just copypasting
+-}
+
+data Program : (comeFroms : SortedNatList) -> (condComeFroms : SortedNatList) -> (sinkCount : Nat) -> (len : Nat) -> (isCorrect : Bool) ->
+               AllLTE len comeFroms => AllLTE len condComeFroms => Type where
+  Exit : Program [] [] sinkCount 1 True
+  Abort : Program [] [] sinkCount 1 False
+  NoOp : Program comeFroms condComeFroms sinkCount len isCorrect @{weakenAllLTELimit prf} @{weakenAllLTELimit condPrf} ->  -- continuation
+         Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf}  -- AllLTE (S len) comeFroms
   -- GoTo forward in continuation-passing style
-  ComeFrom : Program ((::) len comeFroms @{allLTEImpliesSorted $ weakenAllLTELimit prf}) sinkCount len isCorrect @{concatAllLTEList $ weakenAllLTELimit prf} ->  -- continuation
-             Program comeFroms sinkCount (S len) isCorrect @{prf}  -- AllLTE (S len) comeFroms
+  ComeFrom : Program ((::) len comeFroms @{allLTEImpliesSorted $ weakenAllLTELimit prf}) condComeFroms sinkCount len isCorrect
+                     @{concatAllLTEList $ weakenAllLTELimit prf} @{weakenAllLTELimit condPrf} ->  -- continuation
+             Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf}  -- AllLTE (S len) comeFroms
+  CondComeFrom : Program comeFroms ((::) len condComeFroms @{allLTEImpliesSorted $ weakenAllLTELimit condPrf}) sinkCount len isCorrect
+                         @{weakenAllLTELimit prf} @{concatAllLTEList $ weakenAllLTELimit condPrf} ->  -- continuation
+                 Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf}  -- AllLTE (S len) comeFroms
   -- Sink plays a role of both being the end for GoTo forward and GoTo backward.
   -- In the first case, we choose which ComeFroms lead to the sink
   -- In the second case, GoBack chooses to which Sink it goes
-  Sink : (pickedComeFroms : SortedNatList) -> 
-         Contains pickedComeFroms comeFroms =>
-         Program (fst $ complement pickedComeFroms comeFroms) (S sinkCount) len isCorrect @{containsPreservesAllLTE (snd $ complement pickedComeFroms comeFroms) (weakenAllLTELimit prf)} ->  -- continuation
+  Sink : (pickedComeFroms : SortedNatList) -> (pickedCondComeFroms : SortedNatList) -> 
+         Contains pickedComeFroms comeFroms => Contains pickedCondComeFroms condComeFroms =>
+         Program (fst $ complement pickedComeFroms comeFroms) (fst $ complement pickedCondComeFroms condComeFroms) (S sinkCount) len isCorrect
+                 @{containsPreservesAllLTE (snd $ complement pickedComeFroms comeFroms) (weakenAllLTELimit prf)}
+                 @{containsPreservesAllLTE (snd $ complement pickedCondComeFroms condComeFroms) (weakenAllLTELimit condPrf)} -> -- continuation
          -- AllLTE len (complement pickedComeFroms comeFroms)
          -- complement pickedComeFroms comeFroms -> (compl ** Contains compl comeFroms)
-         -- AllLTE (S len) comeFroms -> AllLTE len comeFroms -> AllLTE len compl
-         Program comeFroms sinkCount (S len) isCorrect @{prf} -- AllLTE (S len) comeFroms
+         -- We want to follow the proof path AllLTE (S len) comeFroms -> AllLTE len comeFroms -> AllLTE len compl
+         Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf} -- AllLTE (S len) comeFroms
   -- GoTo backward
   GoBack : Fin sinkCount ->
-           Program comeFroms sinkCount len isCorrect @{weakenAllLTELimit prf} ->  -- continuation
-           Program comeFroms sinkCount (S len) isCorrect @{prf}
+           Program comeFroms condComeFroms sinkCount len isCorrect @{weakenAllLTELimit prf} @{weakenAllLTELimit condPrf} ->  -- continuation
+           Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf}
+  CondGoBack : Fin sinkCount ->
+               Program comeFroms condComeFroms sinkCount len isCorrect @{weakenAllLTELimit prf} @{weakenAllLTELimit condPrf} ->  -- continuation
+               Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf}
 
 
-test : Program [] 0 6 True
+
+test : Program [] [] 0 6 True
 test = ComeFrom $  -- Program [5] 0 5 True
-  Sink [5] $  -- Program [] 1 4 True
+  Sink [5] [] $  -- Program [] 1 4 True
   ComeFrom $  -- Program [3] 1 3 True
-  Sink [3] $  -- Program [] 2 2 True
+  Sink [3] [] $  -- Program [] 2 2 True
   GoBack 0 $  -- Program [] 2 1 True
   Exit
 {-
