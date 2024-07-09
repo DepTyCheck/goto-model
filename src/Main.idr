@@ -140,7 +140,7 @@ data Program : (comeFroms : SortedNatList) -> (condComeFroms : SortedNatList) ->
   CondComeFrom : Program comeFroms ((::) len condComeFroms @{allLTEImpliesSorted $ weakenAllLTELimit condPrf}) sinkCount len isCorrect
                          @{weakenAllLTELimit prf} @{concatAllLTEList $ weakenAllLTELimit condPrf} ->  -- continuation
                  Program comeFroms condComeFroms sinkCount (S len) isCorrect @{prf} @{condPrf}  -- AllLTE (S len) comeFroms
-  -- Sink plays a role of both being the end for GoTo forward and GoTo backward.
+  -- Sink plays a role of both being the beginning for GoTo forward and the end for GoTo backward.
   -- In the first case, we choose which ComeFroms lead to the sink
   -- In the second case, GoBack chooses to which Sink it goes
   Sink : (pickedComeFroms : SortedNatList) -> (pickedCondComeFroms : SortedNatList) -> 
