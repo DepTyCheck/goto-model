@@ -1,7 +1,7 @@
-module Gens.Auto.Interface.Program
+module Gens.Auto.Interface.Tree
 
 import public Gens.Auto.Interface.Common
-import public Spec.Program
+import public Spec.Tree
 
 
 export

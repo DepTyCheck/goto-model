@@ -1,4 +1,4 @@
-module Spec.Program
+module Spec.Tree
 
 import Data.Fin
 import Data.Vect
