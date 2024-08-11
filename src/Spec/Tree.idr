@@ -81,6 +81,23 @@ data PrimaryTree : (leftOutersCount : Nat) -> (rightOutersCount : Nat) -> (verti
           NatSum leftLc rightLc lc =>
           PrimaryTree loc roc (S vc) lc
 
+%name PrimaryTree tree
+
+%hint
+public export
+anyTreeHasSize : PrimaryTree loc roc vc lc -> LT 0 vc
+anyTreeHasSize Leaf = LTESucc LTEZero
+anyTreeHasSize (FakeLeaf x) = LTESucc LTEZero
+anyTreeHasSize (Node1 edge tree) = LTESucc LTEZero
+anyTreeHasSize (Node2 tree tree1) = LTESucc LTEZero
+
+public export
+size : PrimaryTree loc roc vc lc -> Nat
+size Leaf = 1
+size (FakeLeaf x) = 1
+size (Node1 edge tree) = S (size tree)
+size (Node2 leftTree rightTree) = S (size leftTree + size rightTree)
+
 public export
 StrongTree : (vc : Nat) -> (lc : Nat) -> Type
 StrongTree vc lc = PrimaryTree 0 0 vc lc
@@ -144,3 +161,4 @@ test5' = Node1 Nothing $ Node1 Nothing $ FakeLeaf 0
 
 test5 : StrongTree 6 1
 test5 = Node2 (Node1 (Just 2){-loc=0,vc=1,roc=1+3-} $ Leaf) (Node1 (Just 2){-loc=1+2,vc=2,roc=0-} $ Node1 Nothing $ FakeLeaf 0{-loc=1+2,vc=0,roc=2-})
+
