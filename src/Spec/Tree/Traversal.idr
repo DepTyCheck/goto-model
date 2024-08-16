@@ -16,7 +16,8 @@ record TreeTraversalData (n : Nat) where
   rightEdge : MaybeFin n
 
 finIdentity : {x : Nat} -> {b : Nat} -> (prf : LT x b) -> finToNat (natToFinLT x @{prf}) = x
-finIdentity {b = S b'} (LTESucc prf') = ?finIdentity_rhs_0
+finIdentity {x = 0} {b = S b'} (LTESucc prf') = Refl
+finIdentity {x = (S k)} {b = S b'} (LTESucc prf') = cong S $ finIdentity {x = k} {b = b'} prf'
 
 minusPlus'' : (n : Nat) -> (m : Nat) -> minus (plus m n) m = n
 minusPlus'' n 0 = rewrite minusZeroRight n in Refl
@@ -59,7 +60,7 @@ buildIndices {vc = S vc'} (Node1 edge tree) rootI = do
   (rewrite sym $ plusSuccRightSucc ovc vc' in (natToFinLT vc' @{finPrf} ** rewrite finIdentity {x = vc'} finPrf in rewrite minusPlus' (S ovc) vc' in rootI) :: tail)
 buildIndices {vc = S vc'} (Node2 {leftVc} {rightVc} leftTree rightTree @{vcPrf}) rootI = do
   let leftPart : Vect leftVc (IndexPair $ ovc + S vc') = rewrite leftSumRule1 vcPrf ovc in buildIndices leftTree (weakenN rightVc $ FS rootI)
-  let rightPart : Vect rightVc (IndexPair $ ovc + S vc') = rewrite rightSumRule1 vcPrf ovc in buildIndices rightTree (rewrite plusSuccRightSucc ovc leftVc in ?hole $ FS $ shift leftVc $ rootI)
+  let rightPart : Vect rightVc (IndexPair $ ovc + S vc') = rewrite rightSumRule1 vcPrf ovc in buildIndices rightTree (rewrite plusCommutative ovc leftVc in rewrite plusSuccRightSucc leftVc ovc in FS $ shift leftVc $ rootI)
   let finPrf : ?
       finPrf = lteLemma (S vc') ovc
   (natToFinLT vc' @{finPrf} ** rewrite finIdentity {x = vc'} finPrf in rewrite sym $ plusSuccRightSucc ovc vc' in rewrite minusPlus' (S ovc) vc' in rootI) :: (rewrite cong (\x => Vect x (IndexPair $ ovc + S vc')) $ sym $ natSumIsSum vcPrf in leftPart ++ rightPart)

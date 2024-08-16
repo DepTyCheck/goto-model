@@ -39,6 +39,7 @@ decomposeLteMinimum x with (isLTE b c)
     let transPrf = lteSuccLeft $ contraLte contra
     (transitive rightPrf transPrf, rightPrf)
 
+public export
 genPrimaryTree : (natSumF : Fuel) ->
                  (ovc : Nat) -> (vc : Nat) -> (lc : Nat) -> Gen MaybeEmpty $ PrimaryTree ovc vc lc
 genPrimaryTree natSumF ovc vc lc with (isLTE lc vc)

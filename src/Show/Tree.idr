@@ -45,6 +45,7 @@ Pretty (MaybeFin $ S n) where
   prettyPrec _ (Just x) = pretty $ finToNat x
 
 -- TODO: I want ASCII tree pretty printer
+public export
 prettyTree : {opts : ?} -> {ovc : _} -> {vc : _} ->
              PrimaryTree ovc vc lc ->
              Doc opts
