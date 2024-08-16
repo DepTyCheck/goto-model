@@ -1,3 +1,3 @@
 module Gens.Auto.Interface
 
-import public Gens.Auto.Interface.Program
+import public Gens.Auto.Interface.Tree

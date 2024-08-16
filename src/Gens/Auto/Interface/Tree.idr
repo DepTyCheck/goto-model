@@ -4,10 +4,6 @@ import public Gens.Auto.Interface.Common
 import public Spec.Tree
 
 
-export
-genStrongTree : Fuel ->
-                (loc : Nat) ->
-                (roc : Nat) ->
-                (vc : Nat) ->
-                (lc : Nat) ->
-                Gen MaybeEmpty (PrimaryTree loc roc vc lc)
+public export
+genNatSum : Fuel ->
+            (c : Nat) -> Gen MaybeEmpty (a ** b ** NatSum a b c)
