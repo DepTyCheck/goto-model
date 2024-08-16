@@ -69,6 +69,9 @@ split : NatSum leftLen rightLen len -> Vect len a -> (Vect leftLen a, Vect right
 split NatSumBase xs = ([], xs)
 split (NatSumStep sumPrf) (x :: xs) = let (ys, zs) = split sumPrf xs in (x :: ys, zs)
 
+head' : Vect k a -> GT k 0 => a  -- TODO: can I avoid it in a more convenient way?
+head' (x :: xs) @{(LTESucc _)} = x
+
 buildStdTraversalArray' : {ovc : _} -> {vc : _} ->  -- TODO: implicits are everywhere
                           (tree : PrimaryTree ovc vc lc) ->
                           let n = ovc + vc in
@@ -77,8 +80,11 @@ buildStdTraversalArray' : {ovc : _} -> {vc : _} ->  -- TODO: implicits are every
 buildStdTraversalArray' Leaf [ip] = [TTD ip Nothing Nothing]
 buildStdTraversalArray' (FakeLeaf edge) [ip] = [TTD ip (rewrite plusCommutative ovc 1 in convertEdge (rewrite plusCommutative 1 ovc in ip) (Just edge)) Nothing]
 buildStdTraversalArray' {vc = S vc'} (Node1 edge tree) (ip :: ips) = do
+  let (nextS ** nextI) = head' ips
   let tail = buildStdTraversalArray' tree (rewrite plusSuccRightSucc ovc vc' in ips)
-  (TTD ip (rewrite sym $ plusSuccRightSucc ovc vc' in convertEdge (rewrite plusSuccRightSucc ovc vc' in ip) edge) Nothing) :: (rewrite sym $ plusSuccRightSucc ovc vc' in tail)
+  (TTD ip (Just $ weakenLTE nextI $ minusLTE (finToNat nextS) (ovc + S vc'))
+          (rewrite sym $ plusSuccRightSucc ovc vc' in convertEdge (rewrite plusSuccRightSucc ovc vc' in ip) edge))
+    :: (rewrite sym $ plusSuccRightSucc ovc vc' in tail)
 buildStdTraversalArray' {vc = S vc'} (Node2 leftTree rightTree @{vcPrf}) (ip :: ips) = do
   let (leftIs, rightIs) = split vcPrf ips
   let leftArray : Vect ? (TreeTraversalData $ ovc + S vc') = rewrite leftSumRule1 vcPrf ovc in
@@ -87,12 +93,9 @@ buildStdTraversalArray' {vc = S vc'} (Node2 leftTree rightTree @{vcPrf}) (ip :: 
         buildStdTraversalArray' rightTree (rewrite sym $ rightSumRule1 vcPrf ovc in rightIs)
   let (leftS ** leftI) = currentIndexPair $ head' leftArray
   let (rightS ** rightI) = currentIndexPair $ head' rightArray
-  (TTD ip (Just $ weakenLTE leftI $ minusLTE (finToNat leftS) (ovc + S vc')) (Just $ weakenLTE rightI $ minusLTE (finToNat rightS) (ovc + S vc')))
+  (TTD ip (Just $ weakenLTE leftI $ minusLTE (finToNat leftS) (ovc + S vc'))
+          (Just $ weakenLTE rightI $ minusLTE (finToNat rightS) (ovc + S vc')))
     :: (rewrite cong (\x => Vect x $ TreeTraversalData (ovc + S vc')) $ sym $ natSumIsSum vcPrf in leftArray ++ rightArray)
-    where
-      head' : Vect k a -> GT k 0 => a  -- TODO: can I avoid it in a more convenient way?
-      head' (x :: xs) @{(LTESucc _)} = x
-
 
 public export
 buildStdTraversalArray : {ovc : _} -> {vc : _} -> (tree : PrimaryTree ovc vc lc) -> Vect vc (TreeTraversalData (ovc + vc))

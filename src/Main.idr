@@ -46,7 +46,7 @@ run = do
     case test' of
          (Just test) => do
            putStrLn "Successful"
-           printLn (render (Opts 1000) $ prettyTree test)
+           putStrLn (render (Opts 1000) $ prettyTree test)
          Nothing => do
            putStrLn "Failed"
 

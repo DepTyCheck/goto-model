@@ -26,14 +26,14 @@ PrettyTraversalFun vtc vc = (beforeF : PrettyFun vtc vc) -> (afterF : PrettyFun 
 buildPrettyTraversalFun' : {opts : ?} -> Vect k (TreeTraversalData n) -> PrettyTraversalFun {opts} n n'
 buildPrettyTraversalFun' [] beforeF afterF = pure ()
 buildPrettyTraversalFun' (x :: xs) beforeF afterF = do
-  (PTS ssdoc sdoc ps bEdges) <- get
-  put $ (PTS empty empty ps bEdges)
+--  (PTS ssdoc sdoc ps bEdges) <- get
+--  put $ (PTS empty empty ps bEdges)
   beforeF x
   buildPrettyTraversalFun' xs beforeF afterF
-  (PTS _ cdoc ps bEdges) <- get
-  put $ (PTS sdoc cdoc ps bEdges)
+--  (PTS _ cdoc ps bEdges) <- get
+--  put $ (PTS sdoc cdoc ps bEdges)
   afterF x
-  modify $ \(PTS _ cdoc ps bEdges) => PTS ssdoc cdoc ps bEdges
+--  modify $ \(PTS _ cdoc ps bEdges) => PTS ssdoc cdoc ps bEdges
 
 buildPrettyTraversalFun : {opts : ?} -> {ovc : _} -> {vc : _} ->
                           (tree : PrimaryTree ovc vc lc) ->
