@@ -16,7 +16,7 @@ import System.Random.Pure.StdGen
 import Test.DepTyCheck.Gen
 import Gens.Auto.Derivation.Tree
 import Gens.Manual.Tree
-import Show.Tree
+import Show.Tree.Basic
 
 %ambiguity_depth 1003
 
