@@ -2,7 +2,7 @@ module Show.Tree.Basic
 
 import Data.Vect
 import public Text.PrettyPrint.Bernardy
-import public Spec.Tree.SimpleTraversal
+import public Spec.Tree.Traversal
 import Spec.Tree
 
 Pretty (MaybeFin $ S n) where
