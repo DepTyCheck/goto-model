@@ -17,6 +17,7 @@ import Test.DepTyCheck.Gen
 import Gens.Auto.Derivation.Tree
 import Gens.Manual.Tree
 import Show.Tree.Basic
+import Show.Gens.Program
 
 %ambiguity_depth 1003
 
@@ -35,7 +36,7 @@ run = do
 
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..1000]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGen' $ genPrimaryTree (limit f) 0 vc lc
+    test' <- unGen' $ genPrimaryTree (limit f) 0 vc lc >>= relax . prettyProgram {opts = Opts 1000}
     finishMoment <- lift $ liftIO $ clockTime clock
 
     let diff = timeDifference finishMoment startMoment
@@ -46,7 +47,7 @@ run = do
     case test' of
          (Just test) => do
            putStrLn "Successful"
-           putStrLn (render (Opts 1000) $ prettyTree test)
+           putStrLn (render (Opts 1000) $ test)
          Nothing => do
            putStrLn "Failed"
 

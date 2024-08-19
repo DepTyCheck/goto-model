@@ -153,47 +153,9 @@ size' : {vc : _} -> PrimaryTree ovc vc lc -> Nat
 size' tree = vc
 
 public export
-IndexPair : Nat -> Type
-IndexPair n = (s : Fin n ** Fin $ n `minus` (finToNat s))
-
-public export
 finLT : (a : Fin n) -> LT (finToNat a) n
 finLT FZ = LTESucc LTEZero
 finLT (FS x) = LTESucc (finLT x)
-
-
-lemma : {a : Nat} -> {b : Nat} -> {c : Nat} -> {d : Nat} -> LTE b c -> LTE a (c `minus` b) -> LT d b -> LT (a + d) c
-lemma {b = S b'} {c = S c'} {d = 0} _ minusPrf _ = rewrite plusZeroRightNeutral a in LTESucc $ transitive minusPrf minusLte
-lemma {b = S b'} {c = S c'} {d = (S d')} (LTESucc ltePrf') minusPrf (LTESucc ltPrf') =
-  let rec = lemma {a = a} {b = b'} {c = c'} {d = d'} ltePrf' minusPrf ltPrf' in
-    rewrite sym $ plusSuccRightSucc a d' in LTESucc rec
-
-
--- n - number of all vertices
--- n' : (S n') = n
--- s - size of the subtree with the root with index x (s doesn't include the root!)
--- x < s then (S i) + x
--- x >= s and (x - s) < i then x - s
--- x >= s and (x - s) >= i then 1 + (x - s) + s = S x
-public export
-convertEdge : {n' : Nat} -> let n = S n' in (ip : IndexPair n) -> MaybeFin n' -> MaybeFin n
-convertEdge {n'} ip Nothing = Nothing
-convertEdge {n' = 0} ip (Just x) = absurd x
-convertEdge {n' = (S k)} (currentS ** currentI) (Just x) = do
-  let xnat : Nat
-      xnat = finToNat x
-  let (LTESucc xPrf') = finLT x
-  let snat : Nat
-      snat = finToNat currentS
-  let sPrf = finLT currentS
-  let inat : Nat
-      inat = finToNat currentI
-  let iPrf = finLT currentI
-  case isLT xnat snat of
-       (Yes prf) => Just $ natToFinLT (S inat + xnat) @{lemma (lteSuccLeft sPrf) iPrf prf}
-       (No contra) => case isLT (xnat `minus` snat) inat of
-                           (Yes prf2) => Just $ natToFinLT (xnat `minus` snat) @{LTESucc . lteSuccRight $ transitive minusLte xPrf'}
-                           (No contra2) => Just (FS x)
 
 public export
 StrongTree : (vc : Nat) -> (lc : Nat) -> Type

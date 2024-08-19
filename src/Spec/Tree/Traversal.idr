@@ -1,8 +1,8 @@
 module Spec.Tree.Traversal
 
 import Data.Nat.Order.Properties
-import Data.Fin
-import Data.Vect
+import public Data.Fin
+import public Data.Vect
 import public Spec.Tree
 
 
