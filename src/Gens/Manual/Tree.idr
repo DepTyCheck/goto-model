@@ -66,7 +66,62 @@ genPrimaryTree natSumF ovc vc lc with (isLTE lc vc)
       leftTree <- genPrimaryTree natSumF (S $ ovc + rightVc) leftVc leftLc
       rightTree <- genPrimaryTree natSumF (S $ ovc + leftVc) rightVc rightLc
       pure $ Node2 leftTree rightTree @{vcPrf} @{lcPrf}
-    frequency [(3, node1Path), (2, node2Path)]
+    frequency [(2, node1Path), (1, node2Path)]
   genPrimaryTree natSumF ovc vc lc | (No contra) = empty
   genPrimaryTree _ _ _ _ | (Yes prf) = empty  -- TODO: totality checker is broken. This has happened after case-split on prf
+
+-- TODO: it's a copy from Spec.Tree.Traversal
+lteLemma : (a : Nat) -> (b : Nat) -> LTE a (b + a)
+lteLemma 0 b = LTEZero
+lteLemma (S k) b = let rec = lteLemma k b in rewrite sym $ plusSuccRightSucc b k in LTESucc rec
+
+genMaybeBoundedNat : (a : Nat) -> (b : Nat) -> Gen MaybeEmpty $ Maybe (c : Nat ** (LTE a c, LTE c b))
+genMaybeBoundedNat a b with (isLTE a b)
+  genMaybeBoundedNat a b | (Yes prf) = pure $ Just !(genBoundedNat a b)
+  genMaybeBoundedNat a b | (No contra) = pure Nothing
+
+genDAG' : (natSumF : Fuel) ->
+          (ovc : Nat) -> (vc : Nat) -> (lc : Nat) ->
+          (alrGend : Nat) -> LTE alrGend ovc => Gen MaybeEmpty $ PrimaryTree ovc vc lc
+genDAG' natSumF ovc vc lc alrGend @{alrGendPrf} with (isLTE lc vc)
+  genDAG' natSumF ovc 0 lc alrGend @{_} | (Yes prf) = empty
+  genDAG' natSumF 0 (S 0) 0 alrGend @{_} | (Yes LTEZero) = empty
+  genDAG' natSumF (S ovc') (S 0) 0 alrGend @{_} | (Yes LTEZero) = do
+    (x' ** (_, _)) <- genBoundedNat alrGend ovc'
+    pure $ FakeLeaf $ natToFinLT x'
+  genDAG' natSumF ovc (S 0) (S 0) alrGend @{_} | (Yes (LTESucc LTEZero)) = pure Leaf
+  genDAG' natSumF ovc (S (S k)) lc alrGend @{alrGendPrf} | (Yes prf) = do
+    let node1Path = do
+      -- First alternative, an edge to the subtree
+      edge1' <- genFin (S k)
+      let edge1 : MaybeFin (ovc + S k) = Just $ rewrite plusCommutative ovc (S k) in weakenN ovc edge1'
+      -- Second alternative, an edge somewhere further
+      edge2'' <- genMaybeBoundedNat (alrGend + S k) (ovc + k)
+      -- TODO: fix probabilities via oneOf and alternativesOf
+      edge : MaybeFin (ovc + S k) <- case edge2'' of
+                                          Nothing => pure $ edge1
+                                          (Just (edge2' ** (e2LeftPrf, e2RightPrf))) => frequency [(1, pure edge1), (1, pure $ Just $ natToFinLT edge2' @{rewrite sym $ plusSuccRightSucc ovc k in LTESucc e2RightPrf})]
+      subTree <- genDAG' natSumF (S ovc) (S k) lc (S alrGend) @{LTESucc alrGendPrf}
+      pure $ Node1 edge subTree
+    let node2Path = do
+      (leftVc ** rightVc ** vcPrf) <- genNatSum natSumF (S k)
+      leftLcFin <- genFin $ S $ minimum leftVc lc
+      let leftLcPrf' : ?
+          leftLcPrf' = fromLteSucc $ finLT leftLcFin
+      let leftLcPrf : ?
+          leftLcPrf = snd $ decomposeLteMinimum leftLcPrf'
+      let leftLc : ?
+          leftLc = finToNat leftLcFin
+      let (rightLc ** lcPrf) = getNatSumSecond leftLc lc @{leftLcPrf}
+      leftTree <- genDAG' natSumF (S $ ovc + rightVc) leftVc leftLc (S alrGend) @{LTESucc $ rewrite plusCommutative ovc rightVc in transitive alrGendPrf $ lteLemma ovc rightVc}
+      rightTree <- genDAG' natSumF (S $ ovc + leftVc) rightVc rightLc (S alrGend + leftVc) @{LTESucc $ plusLteMonotone alrGendPrf reflexive}
+      pure $ Node2 leftTree rightTree @{vcPrf} @{lcPrf}
+    frequency [(2, node1Path), (1, node2Path)]
+  genDAG' natSumF ovc vc lc alrGend @{_} | (No contra) = empty
+  genDAG' _ _ _ _ _ @{_} | (Yes prf) = empty  -- TODO: totality checker is broken
+
+public export
+genDAG : (natSumF : Fuel) ->
+         (ovc : Nat) -> (vc : Nat) -> (lc : Nat) -> Gen MaybeEmpty $ PrimaryTree ovc vc lc
+genDAG natSumF ovc vc lc = genDAG' natSumF ovc vc lc ovc @{reflexive}
 
