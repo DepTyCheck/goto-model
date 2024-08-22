@@ -36,7 +36,7 @@ run = do
 
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..1000]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGen' $ genDAG (limit f) 0 vc lc >>= relax . prettyProgram {opts = Opts 1000}
+    test' <- unGen' $ genDAG (limit f) 0 vc lc {->>=-} <&> prettyTree {- relax . prettyProgram-} {opts = Opts 1000}
     finishMoment <- lift $ liftIO $ clockTime clock
 
     let diff = timeDifference finishMoment startMoment

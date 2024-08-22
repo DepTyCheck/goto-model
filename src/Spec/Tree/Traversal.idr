@@ -41,29 +41,28 @@ lteLemma (S k) b = let rec = lteLemma k b in rewrite sym $ plusSuccRightSucc b k
 
 
 -- n - number of all vertices
--- n' : (S n') = n
 -- s - size of the subtree with the root with index x (s doesn't include the root!)
--- x < s then (S i) + x
--- x >= s and (x - s) < i then x - s
--- x >= s and (x - s) >= i then 1 + (x - s) + s = S x
-convertEdge : {n' : Nat} -> let n = S n' in (s : Fin n) -> (i : Fin n) -> MaybeFin n' -> MaybeFin n
+-- x < (S s) then i + x
+-- x >= (S s) and (x - (S s)) < i then x - (S s)
+-- x >= (S s) and (x - (S s)) >= i then (x - (S s)) + (S s) = x
+convertEdge : {n : _} -> (s : Fin n) -> (i : Fin n) -> MaybeFin n -> MaybeFin n
 convertEdge s i Nothing = Nothing
-convertEdge {n' = 0} s i (Just x) = absurd x
-convertEdge {n' = (S k)} s i (Just x) = do
+convertEdge {n = 0} s i (Just x) = absurd x
+convertEdge {n = (S k)} s i (Just x) = do
   let xnat : Nat
       xnat = finToNat x
   let xPrf : ?
       xPrf = finLT x
-  let snat : Nat
-      snat = finToNat s
+  let ssnat : Nat
+      ssnat = finToNat (FS s)
   let inat : Nat
       inat = finToNat i
-  if xnat < snat
-     then Just $ (finS i) `finPlus` (weaken x)
+  if xnat < ssnat
+     then Just $ i `finPlus` x
      else let diff : Nat
-              diff = xnat `minus` snat in if diff < inat
-        then Just $ natToFinLT diff @{lteSuccRight $ transitive (LTESucc $ minusLTE snat xnat) xPrf}
-        else Just $ FS x
+              diff = xnat `minus` ssnat in if diff < inat
+                                              then Just $ natToFinLT diff @{transitive (LTESucc $ minusLTE ssnat xnat) xPrf}
+                                              else Just x
 
 leftSumRule2 : NatSum leftLen rightLen len -> (x : Nat) -> x + len = x + rightLen + leftLen
 leftSumRule2 sumPrf x = rewrite sym $ natSumIsSum sumPrf in
@@ -95,12 +94,12 @@ buildStdTraversalArray' : {ovc : _} -> {vc : _} ->
                           Vect vc (Fin n) ->
                           Vect vc (TreeTraversalData n)
 buildStdTraversalArray' Leaf [i] = [TTD i (rewrite plusCommutative ovc 1 in 0) Nothing Nothing]
-buildStdTraversalArray' (FakeLeaf edge) [i] = [TTD i (rewrite plusCommutative ovc 1 in 0) (rewrite plusCommutative ovc 1 in convertEdge 0 (rewrite plusCommutative 1 ovc in i) (Just edge)) Nothing]
+buildStdTraversalArray' (FakeLeaf edge) [i] = let zero : Fin (ovc + 1) = rewrite plusCommutative ovc 1 in 0 in [TTD i zero (convertEdge zero i $ Just edge) Nothing]
 buildStdTraversalArray' {vc = S vc'} (Node1 edge tree) (i :: is) = do
   let tail = buildStdTraversalArray' tree (rewrite plusSuccRightSucc ovc vc' in is)
-  let tailS : Fin ?
-      tailS = natToFinLT vc' @{LTESucc $ lteLemma vc' ovc}
-  (TTD i (rewrite sym $ plusSuccRightSucc ovc vc' in tailS) (Just $ head' is) (rewrite sym $ plusSuccRightSucc ovc vc' in convertEdge tailS (rewrite plusSuccRightSucc ovc vc' in i) edge))
+  let tailS : Fin $ ovc + (S vc')
+      tailS = rewrite sym $ plusSuccRightSucc ovc vc' in natToFinLT vc' @{LTESucc $ lteLemma vc' ovc}
+  (TTD i tailS (Just $ head' is) (convertEdge tailS i edge))
     :: (rewrite sym $ plusSuccRightSucc ovc vc' in tail)
 buildStdTraversalArray' {vc = S vc'} (Node2 leftTree rightTree @{vcPrf}) (i :: is) = do
   let (leftIs, rightIs) = split vcPrf is

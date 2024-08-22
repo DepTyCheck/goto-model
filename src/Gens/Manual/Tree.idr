@@ -45,12 +45,12 @@ genPrimaryTree : (natSumF : Fuel) ->
 genPrimaryTree natSumF ovc vc lc with (isLTE lc vc)
   genPrimaryTree natSumF ovc 0 lc | (Yes prf) = empty
   genPrimaryTree natSumF ovc (S 0) 0 | (Yes LTEZero) = do
-    x <- genFin ovc
+    x <- genFin (ovc + 1)
     pure $ FakeLeaf x
   genPrimaryTree natSumF ovc (S 0) (S 0) | (Yes (LTESucc LTEZero)) = pure Leaf
   genPrimaryTree natSumF ovc (S (S k)) lc | (Yes prf) = do
     let node1Path = do
-      edge <- genMaybeFin (ovc + (S k))
+      edge <- genMaybeFin (ovc + (S $ S k))
       subTree <- genPrimaryTree natSumF (S ovc) (S k) lc
       pure $ Node1 edge subTree
     let node2Path = do
@@ -68,7 +68,7 @@ genPrimaryTree natSumF ovc vc lc with (isLTE lc vc)
       pure $ Node2 leftTree rightTree @{vcPrf} @{lcPrf}
     frequency [(2, node1Path), (1, node2Path)]
   genPrimaryTree natSumF ovc vc lc | (No contra) = empty
-  genPrimaryTree _ _ _ _ | (Yes prf) = empty  -- TODO: totality checker is broken. This has happened after case-split on prf
+  genPrimaryTree _ _ _ _ | (Yes _) = empty
 
 -- TODO: it's a copy from Spec.Tree.Traversal
 lteLemma : (a : Nat) -> (b : Nat) -> LTE a (b + a)
@@ -87,20 +87,20 @@ genDAG' natSumF ovc vc lc alrGend @{alrGendPrf} with (isLTE lc vc)
   genDAG' natSumF ovc 0 lc alrGend @{_} | (Yes prf) = empty
   genDAG' natSumF 0 (S 0) 0 alrGend @{_} | (Yes LTEZero) = empty
   genDAG' natSumF (S ovc') (S 0) 0 alrGend @{_} | (Yes LTEZero) = do
-    (x' ** (_, _)) <- genBoundedNat alrGend ovc'
-    pure $ FakeLeaf $ natToFinLT x'
+    (x' ** (_, xRightPrf)) <- genBoundedNat (S alrGend) (S ovc')
+    pure $ FakeLeaf $ natToFinLT x' @{LTESucc $ rewrite plusCommutative ovc' 1 in xRightPrf}
   genDAG' natSumF ovc (S 0) (S 0) alrGend @{_} | (Yes (LTESucc LTEZero)) = pure Leaf
   genDAG' natSumF ovc (S (S k)) lc alrGend @{alrGendPrf} | (Yes prf) = do
     let node1Path = do
       -- First alternative, an edge to the subtree
-      edge1' <- genFin (S k)
-      let edge1 : MaybeFin (ovc + S k) = Just $ rewrite plusCommutative ovc (S k) in weakenN ovc edge1'
+      edge1' <- genFin (S k)  -- TODO: why FS <$> doesn't work?
+      let edge1 : MaybeFin (ovc + S (S k)) = Just $ rewrite plusCommutative ovc (S (S k)) in weakenN ovc (FS edge1')
       -- Second alternative, an edge somewhere further
-      edge2'' <- genMaybeBoundedNat (alrGend + S k) (ovc + k)
+      edge2'' <- genMaybeBoundedNat (alrGend + S (S k)) (ovc + S k)
       -- TODO: fix probabilities via oneOf and alternativesOf
-      edge : MaybeFin (ovc + S k) <- case edge2'' of
+      edge : MaybeFin (ovc + S (S k)) <- case edge2'' of
                                           Nothing => pure $ edge1
-                                          (Just (edge2' ** (e2LeftPrf, e2RightPrf))) => frequency [(1, pure edge1), (1, pure $ Just $ natToFinLT edge2' @{rewrite sym $ plusSuccRightSucc ovc k in LTESucc e2RightPrf})]
+                                          (Just (edge2' ** (e2LeftPrf, e2RightPrf))) => frequency [(1, pure edge1), (1, pure $ Just $ natToFinLT edge2' @{rewrite sym $ plusSuccRightSucc ovc (S k) in LTESucc e2RightPrf})]
       subTree <- genDAG' natSumF (S ovc) (S k) lc (S alrGend) @{LTESucc alrGendPrf}
       pure $ Node1 edge subTree
     let node2Path = do

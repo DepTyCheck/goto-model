@@ -1,6 +1,5 @@
 module Spec.Tree
 
-import Data.Nat.Extra
 import Data.Fin
 import Data.Vect
 
@@ -106,12 +105,13 @@ First vc values are for the subtree, the remaining ovc values are for the outer 
 public export
 data PrimaryTree : (outerVerticesCount : Nat) -> (verticesCount : Nat) -> (leafsCount : Nat) -> Type where
   Leaf : PrimaryTree ovc 1 1
-  FakeLeaf : (edge : Fin ovc) -> PrimaryTree ovc 1 0
+  FakeLeaf : (edge : Fin $ ovc + 1) -> PrimaryTree ovc 1 0  -- ovc + 1 to match the final type of FakeLeaf, it's useful when building traversalArray
 
-  Node1 : (edge : MaybeFin (ovc + vc)) ->
+  Node1 : (edge : MaybeFin (ovc + S vc)) ->  -- S vc to match the final type of Node1
           PrimaryTree (S ovc) vc lc ->  -- continuation
           PrimaryTree ovc (S vc) lc
   
+  -- TODO: lc can be changed to bool
   Node2 : {leftVc : _} -> {rightVc : _} -> {vc : _} ->
           (leftTree : PrimaryTree (S $ ovc + rightVc) leftVc leftLc) ->
           (rightTree : PrimaryTree (S $ ovc + leftVc) rightVc rightLc) ->
@@ -229,3 +229,11 @@ test5' = Node1 Nothing $ Node1 Nothing $ FakeLeaf 0
 test5 : StrongTree 6 1
 test5 = Node2 (Node1 (Just 2){-ovc=1+3,vc=1-} $ Leaf) (Node1 (Just 2){-ovc=1+2,vc=2-} $ Node1 Nothing $ FakeLeaf 0{-ovc=5,vc=0-})
 
+{-
+
+|<|
+0 |
+|-|
+-}
+test6 : StrongTree 1 0
+test6 = FakeLeaf 0
