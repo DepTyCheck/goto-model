@@ -1,27 +1,16 @@
-# Just some notes about the model
+# goto-model
 
-## First idea
+It is a model of some abstract assembly language. Key feature of the model is work with conditional jumps and three generation steps before getting
+a complete program.
 
-The primary solution was trying to create the whole program at once in a linear pattern, by diving goto into 2 parts:
-```
-source ----goto----> sink
-```
+## Current state
 
-It didn't work because I understood badly what I was doing, or trying to do.
+The language consists of the following instructions:
+ - `exit;` - finishes the program execution
+ - `nop;` - empty instruction, just to fill linear blocks a bit
+ - `label_name:` - puts a label `label_name` into the program
+ - `jmp label_name;` - unconditional jump to the label `label_name` instruction
+ - `condjmp label_name;` - conditional jump to the label `label_name` instruction. It means that 2 paths are possible: either to just skip this instruction,
+ or to follow the jump
 
-## Syntactic success
-
-Why to bother with linearity? Let's just start with a CFG, numerate its vertices (0 is the root) and build a program, using it as a guidance.
-
-For the continuation-passing style I need some structure representing a graph, that is "quite recursive". That is, I don't need to check
-a lot of properties to just make it bigger.
-
-What do I know about my CFGs despite of being a graph?
- 1. There's a starting vertex, from which I can reach any other
- 2. There are no more than 2 edges going out of any vertex
-
-I remembered that binary trees were actually a great structure in terms of functional programming! Moreover, my CFGs had it
-as their part (as long as property 1 existed). Thus, I started experimenting with the thing
-
-I quickly realised that the usage of absolute indices would again give me terrible proofs in constructors, so eventually I moved to Brujin indices,
-and it was the last part of the puzzle.
+The model is able to produce any program which CFG is a DAG (Directed Acyclic Graph)
