@@ -6,6 +6,9 @@ import Data.Fin
 import Test.DepTyCheck.Gen
 
 
+%default total
+
+
 public export
 genFin : (n : Nat) -> Gen MaybeEmpty $ Fin n
 genFin 0 = empty
@@ -25,7 +28,7 @@ allNats' : (a : Nat) -> (b : Nat) -> (x : Nat) ->
            List (c : Nat ** (LTE a c, LTE c b))
 allNats' a b x @{axPrf} @{xbPrf} = case decEq b x of
                       (Yes Refl) => [(b ** (axPrf, xbPrf))]
-                      (No contra) => let rec = allNats' a b (S x) @{lteSuccRight axPrf} @{lemma xbPrf (\eq => contra $ sym eq)} in (x ** (axPrf, xbPrf)) :: rec
+                      (No contra) => let rec = assert_total $ allNats' a b (S x) @{lteSuccRight axPrf} @{lemma xbPrf (\eq => contra $ sym eq)} in (x ** (axPrf, xbPrf)) :: rec
 
 allNats : (a : Nat) -> (b : Nat) -> List (c : Nat ** (LTE a c,  LTE c b))
 allNats a b with (isLTE a b)

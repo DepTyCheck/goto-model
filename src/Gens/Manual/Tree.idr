@@ -39,6 +39,7 @@ decomposeLteMinimum x with (isLTE b c)
     let transPrf = lteSuccLeft $ contraLte contra
     (transitive rightPrf transPrf, rightPrf)
 
+{-
 public export
 genPrimaryTree : (natSumF : Fuel) ->
                  (ovc : Nat) -> (vc : Nat) -> (lc : Nat) -> Gen MaybeEmpty $ PrimaryTree ovc vc lc
@@ -74,12 +75,14 @@ genPrimaryTree natSumF ovc vc lc with (isLTE lc vc)
 lteLemma : (a : Nat) -> (b : Nat) -> LTE a (b + a)
 lteLemma 0 b = LTEZero
 lteLemma (S k) b = let rec = lteLemma k b in rewrite sym $ plusSuccRightSucc b k in LTESucc rec
+-}
 
 genMaybeBoundedNat : (a : Nat) -> (b : Nat) -> Gen MaybeEmpty $ Maybe (c : Nat ** (LTE a c, LTE c b))
 genMaybeBoundedNat a b with (isLTE a b)
   genMaybeBoundedNat a b | (Yes prf) = pure $ Just !(genBoundedNat a b)
   genMaybeBoundedNat a b | (No contra) = pure Nothing
 
+{-
 genDAG' : (natSumF : Fuel) ->
           (ovc : Nat) -> (vc : Nat) -> (lc : Nat) ->
           (alrGend : Nat) -> LTE alrGend ovc => Gen MaybeEmpty $ PrimaryTree ovc vc lc
