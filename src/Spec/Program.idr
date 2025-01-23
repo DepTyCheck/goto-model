@@ -30,6 +30,11 @@ namespace Value
   %name ValueType vTy
 
   public export
+  data IsKnown : ValueType -> Type where
+    IIsKnown : IsKnown I
+    BIsKnown : IsKnown B
+
+  public export
   data ValueOp = Add | And | Or
 
   %name ValueOp vop
@@ -44,13 +49,15 @@ namespace Value
   %name IsOpValueTypes ovtPrf
 
   public export
+  data DetValue : ValueType -> Type where
+    DetI : Int32 -> DetValue I
+    DetB : Bool -> DetValue B
+
+  public export
   data ValueExpr : ValueType -> Bool -> Type where
-    -- TODO: definitely can be generalized
-    DetI : Int32 -> ValueExpr I True
-    DetB : Bool -> ValueExpr B True
-    UndetI : ValueExpr I False
-    UndetB : ValueExpr B False
-    Op : (opIdx : Nat) -> (vop : ValueOp) -> ValueExpr vTyL isDetL -> ValueExpr vTyR isDetR ->
+    Det : (vTy : ValueType) -> (rawV : DetValue vTy) -> ValueExpr vTy True
+    Undet : (vTy : ValueType) -> (idx : Nat) -> ValueExpr vTy False
+    Op : (idx : Nat) -> (vop : ValueOp) -> ValueExpr vTyL isDetL -> ValueExpr vTyR isDetR ->
          IsOpValueTypes vop vTyL vTyR vTy => NotAll isDetL isDetR =>
          ValueExpr vTy False
 
@@ -65,9 +72,6 @@ namespace Value
     raw : ValueExpr type isDetermined
 
   %name Value v
-
-  public export
-  data Satisfied : Value -> Value -> Type where
 
   public export
   data IsOpValues : (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> ValueType -> Type where
@@ -89,15 +93,15 @@ namespace Value
   produce _ vop (V vTyL True vExprL) (V vTyR True vExprR) @{ovPrf} = do
     let ovtPrf = opValuesAreOpValueTypes ovPrf
     case ovtPrf of
-         ItIsAddValueTypes => V I True $ DetI $ (fst $ getI vExprL) + (fst $ getI vExprR)
-         ItIsAndValueTypes => V B True $ DetB $ (fst $ getB vExprL) && (fst $ getB vExprR)
-         ItIsOrValueTypes => V B True $ DetB $ (fst $ getB vExprL) || (fst $ getB vExprR)
+         ItIsAddValueTypes => V I True $ Det I $ DetI $ (fst $ getI vExprL) + (fst $ getI vExprR)
+         ItIsAndValueTypes => V B True $ Det B $ DetB $ (fst $ getB vExprL) && (fst $ getB vExprR)
+         ItIsOrValueTypes => V B True $ Det B $ DetB $ (fst $ getB vExprL) || (fst $ getB vExprR)
     where
-      getI : (vExpr : ValueExpr I True) -> (x ** vExpr = DetI x)
-      getI (DetI x) = (x ** Refl)
+      getI : (vExpr : ValueExpr I True) -> (x ** vExpr = (Det I $ DetI x))
+      getI (Det I $ DetI x) = (x ** Refl)
 
-      getB : (vExpr : ValueExpr B True) -> (b ** vExpr = DetB b)
-      getB (DetB b) = (b ** Refl)
+      getB : (vExpr : ValueExpr B True) -> (b ** vExpr = (Det B $ DetB b))
+      getB (Det B $ DetB b) = (b ** Refl)
 
 
   public export
@@ -140,97 +144,203 @@ namespace Context
     public export
     data ListSource : (n : Nat) -> Type where
       Nil : ListSource n
-      (::) : VectValue n {-context at the moment of the jump-} -> ListSource n -> ListSource n
+      (::) : (Nat, VectValue n) {-context at the moment of the jump-} -> ListSource n -> ListSource n
 
     public export
-    data Concat : ListSource n -> ListSource n -> ListSource n -> Type where
+    data Concat : (leftSs : ListSource n) -> (rightSs : ListSource n) -> ListSource n -> Type where
+      [search leftSs rightSs]
       ConcatBase : Concat [] ss ss
       ConcatStep : Concat ss1' ss2 ss -> Concat (s :: ss1') ss2 (s :: ss)
 
     public export
     data Length : (ss : ListSource n) -> Nat -> Type where
+      [search ss]
       LengthEmpty : Length [] Z
       LengthNonEmpty : Length ss' l' -> Length (s :: ss') (S l')
 
     public export
-    data Index : (i : Fin l) -> (ss : ListSource n) -> Length ss l => VectValue n -> Type where
+    data Index : (i : Fin l) -> (ss : ListSource n) -> Length ss l => (Nat, VectValue n) -> Type where
       [search i ss]
       IndexBase : Index FZ (s :: ss') @{_} s
       IndexStep : Index i' ss' @{lenPrf'} s -> Index (FS i') (s' :: ss') @{LengthNonEmpty lenPrf'} s
 
+  namespace Guarantee
+    public export
+    data Guarantee = SavesValue | SavesType | SavesNothing
+
+    -- TODO: or name it ListGuarantee?
+    -- TODO: just SavesValue must become (SavesType True)
+    public export
+    data Guarantees : (n : Nat) -> Type where
+      Nil : Guarantees 0
+      (::) : Guarantee -> Guarantees n -> Guarantees (S n)
+
   namespace Loop
+    public export
+    record Loop (n : Nat) where
+      constructor L
+
+      savedContext : ({-undeterminedCount-}Nat, {-regs-}VectValue n)
+      initialContext : VectValue n -- context at the moment of the loop iteration beginning
+      contextGuarantees : Guarantees n
+      lockedSources : ListSource n
+
     public export
     data ListLoop : (n : Nat) -> Type where
       Nil : ListLoop n
-      (::) : (VectValue n {-ctx guarantees-}, VectValue n {-current diff-}, ListSource n {-locked sources-}) -> ListLoop n -> ListLoop n
+      (::) : Loop n -> ListLoop n -> ListLoop n
 
   public export
   record Context (n : Nat) where
     constructor Ctx
-  
-    -- Again, goto = source -> sink
-    -- Locked source = it is inside of an unended loop
-    -- Free source = it is any other source available
 
-    -- info about current opened loops (context guarantees & saved values diff & locked sources)
-    -- Again, goto = source -> sink
-    -- TODO: only 1 loop is allowed now
-    openedLoops : ListLoop n
-    -- info about current values (only regs for now)
-    undeterminedCount : Nat -- required to introduce new undetermined variables
-    values : VectValue n
+    openLoops : ListLoop n
+    undeterminedCount : Nat
+    registers : VectValue n
     isInLinearBlock : Bool
-    -- info about free sources & their contexts
     freeSources : ListSource n
-
-  -- For new sources in a loop (locked) I must save current values 
   
   %name Context ctx
   
   data Finished : Context n -> Type where
-    CtxIsFinished : Finished (Ctx [] _ _ _ [])
+    -- TODO: actually, False can be omitted, but just to be clear for now
+    CtxIsFinished : Finished (Ctx [] _ _ False [])
 
 namespace Program
   public export
-  data PickHelper : (ss : ListSource n) -> (css : ListSource n) -> VectValue n -> ListSource n -> Type where
+  data PickHelper : (ss : ListSource n) -> (css : ListSource n) -> Nat -> VectValue n -> ListSource n -> Type where
     [search ss css]
-    PickMiss : PickHelper ss' (s :: css) resVs resSs => PickHelper (s :: ss') css resVs resSs
-    PickHit : Concat ss' css resSs => PickHelper (s :: ss') css s resSs
+    PickMiss : PickHelper ss' (s :: css) resUc resVs resSs => PickHelper (s :: ss') css resUc resVs resSs
+    PickHit : Concat ss' css resSs => PickHelper ((uc, regs) :: ss') css uc regs resSs
   
   -- TODO: only simple case with 1 picked source covered. There is also
-  -- complex case with many picked sources and merge of their values. It is not simple to implement due to
-  -- transposition of lists of vects into vect of lists (merge of the selected sources)
+  -- complex case with many picked sources and merge of their values.
   -- Also, merge may require to introduce new undetermined values
   public export
-  data Pick : (ss : ListSource n) -> VectValue n -> ListSource n -> Type where
+  data Pick : (ss : ListSource n) -> Nat -> VectValue n -> ListSource n -> Type where
     [search ss]
-    PickBootstrap : PickHelper (s :: ss') [] resVs resSs => Pick (s :: ss') resVs resSs
+    JustPick : PickHelper ss [] resUc resVs resSs => Pick ss resUc resVs resSs
+
+  -- It is crucial to erase Ops, because otherwise the further dependency analysis in the unwinding step is crazy
+  public export
+  data ValueWinding : (uc : Nat) -> (oldV : Value) -> Nat -> Value -> Type where
+    [search uc oldV]
+    ResetUndetIndex : ValueWinding uc (V vTy False $ Undet ? oldIdx) (S uc) (V vTy False $ Undet ? uc) 
+    EraseOp : ValueWinding uc (V vTy False $ Op oldIdx vop vExprL vExprR @{ovtPrf} @{notAllPrf}) (S uc) (V vTy False $ Undet ? uc)
+    SkipDet : ValueWinding uc (V vTy True vExpr) uc (V vTy True vExpr)
 
   public export
-  data IsSankIn : Context n -> Context n -> Type where
-    ItIsSankInViaFree : Pick fs contRegs contFs =>
-                        Ctx ols uc contRegs True contFs `IsSankIn` Ctx ols uc regs False fs
-    ItIsSankInViaLocked : Pick ls contRegs contLs =>
-                          Ctx ((g, d, contLs) :: ols') uc contRegs True fs `IsSankIn` Ctx ((g, d, ls) :: ols') uc regs False fs
-    ItIsSankInWithLoop : Ctx contOls contUc contRegs True contFs `IsSankIn` Ctx ols uc regs False fs =>
-                         -- update uc, regs due to a new loop
-                         IsSankIn (Ctx ((g, d, ls) :: contOls) contUc contRegs True contFs) $ Ctx ols uc regs False fs
+  data ContWinding : {-current values-}VectValue n -> Guarantees n -> Nat -> VectValue n -> Type where
+    JustGuarantees : ContWinding [] [] Z []
+    GuaranteesValue : ContWinding regs' g' contUc' contRegs' =>
+                      IsKnown vTy =>
+                      ValueWinding contUc' (V vTy isDet vExpr) contUc v =>
+                      ContWinding ((V vTy isDet vExpr) :: regs') (SavesValue :: g') contUc (v :: contRegs')
+    GuaranteesType : ContWinding regs' g' contUc' contRegs' =>
+                     IsKnown vTy =>
+                     ContWinding ((V vTy isDet vExpr) :: regs') (SavesType :: g') (S contUc') ((V vTy False $ Undet ? contUc') :: contRegs')
+    GuaranteesNothing : ContWinding regs' g' contUc contRegs' =>
+                        ContWinding (v' :: regs') (SavesNothing :: g') contUc ((V U False $ Undet ? 0) :: contRegs')
 
   public export
-  data ForwardEdge : Context n -> Context n -> Type where
+  data IsSankIn : {-post-}Context n -> {-pre-}Context n -> Type where
+    -- TODO: potentially, we can allow to enter a context with loops from the outside
+    ItIsSankInViaFree : Pick fs contUc contRegs contFs =>
+                        Ctx [] contUc contRegs True contFs `IsSankIn` Ctx [] uc regs False fs
+    ItIsSankInViaLocked : Pick ls contUc contRegs contLs =>
+                          Ctx ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs `IsSankIn` Ctx ((L savedCtx initCtx g ls) :: ols') uc regs False fs
+    ItIsSankInWithLoop : Ctx contOls' contUc' contRegs' True contFs' `IsSankIn` Ctx ols uc regs False fs =>
+                         -- context to-loop update happens here
+                         ContWinding contRegs' g contUc contRegs =>
+                         Ctx ((L (contUc', contRegs') contRegs g []) :: contOls') contUc contRegs True contFs' `IsSankIn` Ctx ols uc regs False fs
+
+  public export
+  data ForwardEdge : {-pre-}Context n -> {-post-}Context n -> Type where
     -- When a forward edge is attached in a not linear context,
     -- the edge relates to the last completed linear block
-    Free : ForwardEdge (Ctx [] uc regs False (regs :: fs)) (Ctx [] uc regs _ fs)
-    Locked : ForwardEdge (Ctx ((g, d, regs :: ls) :: ols') uc regs False fs) (Ctx ((g, d, ls) :: ols') uc regs _ fs)
+    Free : ForwardEdge (Ctx [] uc regs _ fs) $ Ctx [] uc regs False ((uc, regs) :: fs)
+    Locked : ForwardEdge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $ Ctx ((L savedCtx initCtx g $ (uc, regs) :: ls) :: ols') uc regs False fs
 
   public export
-  data Edge : Context n -> Context n -> Type where
-    Backward : -- guarantees are reached
-               -- decreasing/increasing variable exists
-               -- update the context
-               Concat fs ls contFs =>
-               Edge (Ctx ols' contUc contRegs False contFs) (Ctx ((g, d, ls) :: ols') uc regs True fs)
-    Forward : ForwardEdge contCtx ctx -> Edge contCtx ctx
+  data IsMet : Guarantee -> Value -> Value -> Type where
+    ValueIsMet : IsMet SavesValue v v
+    TypeIsMet : IsMet SavesType (V vTy _ _) (V vTy _ _)
+
+  public export
+  data NotSame : Nat -> Nat -> Type where
+    NotSameLeftBase : NotSame Z (S m')
+    NotSameRightBase : NotSame (S n') Z
+    NotSameStep : NotSame n m => NotSame (S n) (S m)
+
+  public export
+  data SelfDepends : (initExpr : ValueExpr vTy initIsDet) -> (vExpr : ValueExpr vTy isDet) -> Bool -> Type where
+    [search initExpr vExpr]
+    SelfDependsDet : SelfDepends _ (Det _ _) True
+    SelfDependsUndet : SelfDepends (Undet vTy i) (Undet vTy i) True
+    SelfDependsFalse : NotSame i j => SelfDepends (Undet vTy i) (Undet vTy j) False
+    SelfDependsStep : SelfDepends initExpr vExprL sdL =>
+                      SelfDepends initExpr vExprR sdR =>
+                      BoolAnd sdL sdR sd =>
+                      SelfDepends initExpr (Op _ _ vExprL vExprR @{ovtPrf} @{notAllPrf}) sd
+
+  public export
+  data ExprUnwinding : (uc' : Nat) -> (savedExpr : ValueExpr vTy savedIsDet) -> (initExpr : ValueExpr vTy initIsDet) -> (finalExpr : ValueExpr vTy isDet) -> Nat -> ValueExpr vTy isDet -> Type where
+    [search uc' savedExpr initExpr finalExpr]
+    ExprUnwindingId : ExprUnwinding uc savedExpr initExpr initExpr uc savedExpr
+    ExprUnwindingDet : ExprUnwinding uc savedExpr (Undet _ _) (Det vTy rawV) uc (Det ? rawV)
+    ExprUnwindingOp : ExprUnwinding uc' savedExpr initExpr (Op _ _ _ _ @{ovtPrf} @{notAllPrf}) (S uc') (Undet ? uc')
+
+  public export
+  data Squash : Nat -> ValueExpr vTy savedIsDet -> ValueExpr vTy initIsDet -> ValueExpr vTy isDet -> Nat -> ValueExpr vTy isDet -> Type where
+    SquashSelfRec : SelfDepends initExpr finalExpr True =>
+                    ExprUnwinding uc' savedExpr initExpr finalExpr uc vExpr =>
+                    Squash uc' savedExpr initExpr finalExpr uc vExpr 
+    -- If it is not self-recursive, then it must be not a constant
+    SquashNotSelfRec : SelfDepends initExpr finalExpr False =>
+                       Squash uc' savedExpr initExpr finalExpr (S uc') (Undet ? uc')
+
+  public export
+  data ResetIndex : {isDet : _} -> {vTy : _} -> Nat -> ValueExpr vTy isDet -> Nat -> ValueExpr vTy isDet -> Type where
+    ResetIndexHit : ResetIndex {isDet=False} {vTy} uc' vExpr' (S uc') $ Undet vTy uc'
+    ResetIndexMiss : ResetIndex {isDet=True} uc v uc v
+
+  public export
+  data ValueUnwinding : {-uc-}Nat -> {-saved values to build the result-}Value -> Guarantee -> {-init-}Value -> {-final-}Value -> {-the result uc-}Nat -> {-the result-}Value -> Type where
+    FinalValueIsPreserved : ValueUnwinding uc savedV SavesValue initV initV uc savedV
+    FinalTypeIsPreserved : Squash uc' savedExpr initExpr finalExpr uc vExpr =>
+                           ValueUnwinding uc' (V vTy savedIsDet savedExpr) SavesType (V vTy initIsDet initExpr) (V vTy isDet finalExpr) uc (V vTy isDet vExpr)
+    FinalIsIntroduced : IsKnown vTy =>
+                        ResetIndex uc' vExpr' uc vExpr =>
+                        ValueUnwinding uc' _ SavesNothing _ (V vTy isDet vExpr') uc (V vTy isDet vExpr)
+    -- TODO: maybe I should work differently with completely unknown values or count them properly
+    FinalIsUnknown : ValueUnwinding uc savedV SavesNothing (V _ _ _) (V U _ _) uc (V U False $ Undet U 0)
+
+  public export
+  data ContUnwinding : (Nat, VectValue n) -> VectValue n -> Guarantees n -> Nat -> VectValue n -> Nat -> VectValue n -> Type where
+    -- 2 major steps: summarize the iteration and make the new context
+    ContUnwindingBase : ContUnwinding (savedUc, []) [] [] uc [] savedUc []
+    ContUnwindingStep : ContUnwinding (savedUc, savedRegs') initRegs' g' uc finalRegs' contUc' contRegs' =>
+                        ValueUnwinding contUc' savedV vg initV finalV contUc contV =>
+                        ContUnwinding (savedUc, savedV :: savedRegs') (initV :: initRegs') (vg :: g') uc (finalV :: finalRegs') contUc (contV :: contRegs') 
+
+
+  public export
+  data IsStrictlyMonotoneValueExpr : ValueExpr I isDet -> ValueExpr I isDet -> Type where
+    ItIsInc : IsStrictlyMonotoneValueExpr initExpr (Op _ Add initExpr (Det I $ DetI 1) @{ovtPrf} @{notAllPrf})
+    -- TODO: analyze initExpr and vExpr
+
+  public export
+  data HasStrictlyMonotoneValue : VectValue n -> VectValue n -> Type where
+    StrictlyMonotoneValueHere : IsStrictlyMonotoneValueExpr initExpr finalExpr => HasStrictlyMonotoneValue ((V I isDet initExpr) :: initRegs') ((V I isDet finalExpr) :: finalRegs')
+    StrictlyMonotoneValueThere : HasStrictlyMonotoneValue initRegs' finalRegs' => HasStrictlyMonotoneValue (v1 :: initRegs') (v2 :: finalRegs')
+
+  public export
+  data Edge : {-pre-}Context n -> {-post-}Context n -> Type where
+    Backward : HasStrictlyMonotoneValue initCtx regs =>
+               ContUnwinding savedCtx initCtx g uc regs contUc contRegs => -- context from-loop update happens here
+               Concat ls fs contFs =>
+               Edge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs True fs) (Ctx ols' contUc contRegs False contFs)
+    Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
 data Program : Context n -> Type where
@@ -248,15 +358,51 @@ data Program : Context n -> Type where
   -- Control Flow
   Sink : contCtx `IsSankIn` ctx => Program contCtx -> Program ctx
 
-  Source0 : Program (Ctx ols uc regs False fs) -> Program (Ctx ols uc regs True fs)
-  Source1 : Edge (Ctx contOls contUc contRegs False contFs) (Ctx ols uc regs True fs) ->
+  Source0 : Program (Ctx [] uc regs False fs) ->
+            Program (Ctx [] uc regs True fs)
+  Source1 : Edge (Ctx ols uc regs True fs) (Ctx contOls contUc contRegs False contFs) =>
             Program (Ctx contOls contUc contRegs False contFs) ->
             Program (Ctx ols uc regs True fs)
-  Source2 : Edge (Ctx contOls' contUc' contRegs' False contFs') (Ctx ols uc regs True fs) ->
-            ForwardEdge (Ctx contOls contUc contRegs False contFs) (Ctx contOls' contUc' contRegs' False contFs') ->
+  Source2 : Edge (Ctx ols uc regs True fs) (Ctx contOls' contUc' contRegs' False contFs') =>
+            ForwardEdge (Ctx contOls' contUc' contRegs' False contFs') (Ctx contOls contUc contRegs False contFs) =>
             Program (Ctx contOls contUc contRegs False contFs) ->
             Program (Ctx ols uc regs True fs)
 
   Finish : Finished ctx => Program ctx
 
 %name Program prog
+
+
+test0 : Program {n=2} $ Ctx [] Z [V _ _ (Det _ $ DetI 1), V _ _ (Det _ $ DetB True)] True []
+test0 = Assign 0 1 $
+        Source0 $ 
+        Finish
+
+test1 : Program {n=2} $ Ctx [] 1 [V _ _ (Undet _ 0), V _ _ (Det _ $ DetB True)] True []
+test1 = Assign 0 1 $
+        Source0 $
+        Finish
+
+test2 : Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det _ $ DetI 1)] True []
+test2 = Source1 @{Forward Free} $
+        -- Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det _ $ DetI 1)] False [(1, [...])]
+        Sink @{ItIsSankInWithLoop {g=[SavesType, SavesValue]} @{ItIsSankInViaFree @{JustPick @{PickHit}}} @{GuaranteesType @{GuaranteesValue @{JustGuarantees}}}} $
+                                      
+        -- After ItIsSankInViaFree
+        -- Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det _ $ DetI 1)] True []
+        -- After ItIsSankInWithLoop
+        RegOp Add 0 0 1 $
+        -- Program {n=2} $ Ctx [L (1, [V I False (Undet I 0), V I True (Det I (DetI 1))])
+        --                        [V I False (Undet I 0), V I True (Det I (DetI 1))] 
+        --                        [SavesType, SavesValue]
+        --                        []
+        --                     ] 2 [ V I False (Op 1 Add (Undet I 0) (Det I (DetI 1)))
+        --                         , V I True (Det I (DetI 1))
+        --                         ] True []
+        Source2 @{Backward @{%search} @{ContUnwindingStep @{ContUnwindingStep @{ContUnwindingBase} @{FinalValueIsPreserved}} @{FinalTypeIsPreserved @{SquashSelfRec @{SelfDependsStep}}}}} @{Free} $
+        Sink @{ItIsSankInViaFree @{JustPick @{PickHit}}} $
+        Source0 $
+        Finish
+
+test2' : SelfDepends (Undet I 0) (Op 1 Add (Undet I 0) (Det _ $ DetI 1)) True
+test2' = SelfDependsStep @{SelfDependsUndet} @{SelfDependsDet}
