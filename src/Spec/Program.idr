@@ -331,12 +331,18 @@ namespace Program
                        Squash uc' savedExpr initExpr finalExpr (S uc') (Undet ? uc')
 
   public export
-  data ResetIndex : {isDet : _} -> {mVTy : _} -> Nat -> VExpr mVTy isDet -> Nat -> VExpr mVTy isDet -> Type where
+  data ResetIndex : {isDet : _} -> {mVTy : _} ->
+                    (uc' : Nat) -> (vExpr' : VExpr mVTy isDet) ->
+                    Nat -> VExpr mVTy isDet -> Type where
+    [search uc' vExpr']
     ResetIndexHit : ResetIndex {isDet=False} {mVTy=Just vTy} uc' vExpr' (S uc') $ Undet vTy uc'
     ResetIndexMiss : ResetIndex {isDet=True} uc v uc v
 
   public export
-  data ValueUnwinding : {-uc-}Nat -> {-saved values to build the result-}Value -> Guarantee -> {-init-}Value -> {-final-}Value -> {-the result uc-}Nat -> {-the result-}Value -> Type where
+  data ValueUnwinding : (uc' : Nat) -> (savedV : Value) -> (g : Guarantee) ->
+                        (initV : Value) -> (finalV : Value) ->
+                        {-the result uc-}Nat -> {-the result-}Value -> Type where
+    [search uc' savedV g initV finalV]
     FinalValueIsPreserved : ValueUnwinding uc savedV SavesValue initV initV uc savedV
     FinalTypeIsPreserved : Squash uc' savedExpr initExpr finalExpr uc vExpr =>
                            ValueUnwinding uc' (V (Just vTy) savedIsDet savedExpr) SavesType (V (Just vTy) initIsDet initExpr) (V (Just vTy) isDet finalExpr) uc $ V (Just vTy) isDet vExpr
@@ -346,7 +352,10 @@ namespace Program
     FinalIsUnknown : ValueUnwinding uc savedV SavesNothing (V _ _ _) (V Nothing _ _) uc $ V Nothing False Unkwn
 
   public export
-  data ContUnwinding : (Nat, VectValue n) -> VectValue n -> Guarantees n -> Nat -> VectValue n -> Nat -> VectValue n -> Type where
+  data ContUnwinding : (savedCtx : (Nat, VectValue n)) ->
+                       (initRegs : VectValue n) -> (gs : Guarantees n) -> (uc : Nat) ->(finalRegs : VectValue n) ->
+                       Nat -> VectValue n -> Type where
+    [search savedCtx initRegs gs uc finalRegs]
     -- 2 major steps: summarize the iteration and make the new context
     ContUnwindingBase : ContUnwinding (savedUc, []) [] [] uc [] savedUc []
     ContUnwindingStep : ContUnwinding (savedUc, savedRegs') initRegs' g' uc finalRegs' contUc' contRegs' =>
@@ -394,7 +403,6 @@ data Program : Context n -> Type where
             Program (Ctx [] uc regs True fs)
   Source1 : Edge (Ctx ols uc regs True fs) (Ctx contOls contUc contRegs False contFs) =>
             Program (Ctx contOls contUc contRegs False contFs) ->
-
             Program (Ctx ols uc regs True fs)
   Source2 : Edge (Ctx ols uc regs True fs) (Ctx contOls' contUc' contRegs' False contFs') =>
             ForwardEdge (Ctx contOls' contUc' contRegs' False contFs') (Ctx contOls contUc contRegs False contFs) =>
@@ -437,5 +445,6 @@ test2 = Source1 @{Forward Free} $
         Source0 $
         Finish
 
+-- TODO: doesn't work if I write "test2' = %search"
 test2' : SelfDepends (Undet I 0) (Op 1 Add (Undet I 0) (Det $ RawI 1)) True
 test2' = SelfDependsStep @{SelfDependsUndet} @{SelfDependsDet}
