@@ -105,21 +105,21 @@ namespace Value
   opValuesAreOpVTypes ItIsOrValues = ItIsOrVTypes
 
   public export
-  produce : (undetC : Nat) -> (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> {vTy : _} -> IsOpValues vop lv rv vTy => Value
-  produce undetC vop (V mVTyL False vExprL) (V mVTyR isDetR vExprR) @{ovPrf} = do
+  produce : (uc : Nat) -> (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> {vTy : _} -> IsOpValues vop lv rv vTy => (Nat, Value)
+  produce uc vop (V mVTyL False vExprL) (V mVTyR isDetR vExprR) @{ovPrf} = do
     let ((vTyL ** Refl), (vTyR ** Refl)) = opValuesAreKnown ovPrf
-    V (Just vTy) False $ Op {vTyL} {vTyR} undetC vop vExprL vExprR @{opValuesAreOpVTypes ovPrf}
-  produce undetC vop (V mVTyL True vExprL) (V mVTyR False vExprR) @{ovPrf} = do
+    (S uc, V (Just vTy) False $ Op {vTyL} {vTyR} uc vop vExprL vExprR @{opValuesAreOpVTypes ovPrf})
+  produce uc vop (V mVTyL True vExprL) (V mVTyR False vExprR) @{ovPrf} = do
     let ((vTyL ** Refl), (vTyR ** Refl)) = opValuesAreKnown ovPrf
-    V (Just vTy) False $ Op undetC vop vExprL vExprR @{opValuesAreOpVTypes ovPrf}
+    (S uc, V (Just vTy) False $ Op uc vop vExprL vExprR @{opValuesAreOpVTypes ovPrf})
   -- TODO: cannot make case split on ovPrf, compiler fails
-  produce _ vop (V mVTyL True vExprL) (V mVTyR True vExprR) @{ovPrf} = do
+  produce uc vop (V mVTyL True vExprL) (V mVTyR True vExprR) @{ovPrf} = do
     let ((vTyL ** Refl), (vTyR ** Refl)) = opValuesAreKnown ovPrf
     let ovtPrf = opValuesAreOpVTypes ovPrf
     case ovtPrf of
-         ItIsAddVTypes => V (Just I) True $ Det $ RawI $ (fst $ getI vExprL) + (fst $ getI vExprR)
-         ItIsAndVTypes => V (Just B) True $ Det $ RawB $ (fst $ getB vExprL) && (fst $ getB vExprR)
-         ItIsOrVTypes => V (Just B) True $ Det $ RawB $ (fst $ getB vExprL) || (fst $ getB vExprR)
+         ItIsAddVTypes => (uc, V (Just I) True $ Det $ RawI $ (fst $ getI vExprL) + (fst $ getI vExprR))
+         ItIsAndVTypes => (uc, V (Just B) True $ Det $ RawB $ (fst $ getB vExprL) && (fst $ getB vExprR))
+         ItIsOrVTypes => (uc, V (Just B) True $ Det $ RawB $ (fst $ getB vExprL) || (fst $ getB vExprR))
     where
       getI : (vExpr : VExpr (Just I) True) -> (x ** vExpr = (Det $ RawI x))
       getI (Det $ RawI x) = (x ** Refl)
@@ -386,16 +386,22 @@ namespace Program
     Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
+data Uncurry : (p : (Nat, Value)) -> Nat -> Value -> Type where
+  [search p]
+  DoUncurry : Uncurry (x, v) x v
+
+public export
 data Program : (ctx : Context n) -> Type where
   -- Linear Block
   Assign : (target : Fin n) -> (i : Fin n) ->
            Program (Ctx ols uc (duplicate target i regs) True fs) ->
            Program $ Ctx ols uc regs True fs
   RegOp : (vop : ValueOp) -> (target : Fin n) -> (li : Fin n) -> (ri : Fin n) ->
-          {ols : _} -> {uc : _} -> {regs : _} -> {fs : _} -> {lv, rv : _} -> {vTy : _} ->
+          {ols : _} -> {uc : _} -> {regs : _} -> {fs : _} -> {lv, rv : _} -> {vTy : _} -> {newUc : _} -> {newValue : _} ->
           Index li regs lv => Index ri regs rv => IsOpValues vop lv rv vTy =>
-          let newValue : ?; newValue = produce uc vop lv rv in  -- TODO: reduce function?...
-          Program (Ctx ols (if newValue.isDetermined then uc else (S uc)) (replaceAt target newValue regs) True fs) ->
+          let newProd : ?; newProd = produce uc vop lv rv in  -- TODO: reduce function?...
+          Uncurry newProd newUc newValue =>
+          Program (Ctx ols newUc (replaceAt target newValue regs) True fs) ->
           Program $ Ctx ols uc regs True fs
 
   -- Control Flow
