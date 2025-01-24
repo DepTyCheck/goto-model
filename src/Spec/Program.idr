@@ -192,12 +192,16 @@ namespace Context
     public export
     data Guarantee = SavesValue | SavesType | SavesNothing
 
+    %name Guarantee g
+
     -- TODO: or name it ListGuarantee?
     -- TODO: just SavesValue must become (SavesType True)
     public export
     data Guarantees : (n : Nat) -> Type where
       Nil : Guarantees 0
       (::) : Guarantee -> Guarantees n -> Guarantees (S n)
+
+    %name Guarantees gs
 
     public export
     data IsMet : Guarantee -> Value -> Value -> Type where
@@ -264,13 +268,13 @@ namespace Program
                      Nat -> VectValue n -> Type where
     [search regs gs]
     JustGuarantees : ContWinding [] [] Z []
-    GuaranteesValue : ContWinding regs' g' contUc' contRegs' =>
+    GuaranteesValue : ContWinding regs' gs' contUc' contRegs' =>
                       ValueWinding contUc' (V (Just vTy) isDet vExpr) contUc v =>
-                      ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesValue :: g') contUc (v :: contRegs')
-    GuaranteesType : ContWinding regs' g' contUc' contRegs' =>
-                     ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesType :: g') (S contUc') ((V (Just vTy) False $ Undet ? contUc') :: contRegs')
-    GuaranteesNothing : ContWinding regs' g' contUc contRegs' =>
-                        ContWinding (v' :: regs') (SavesNothing :: g') contUc ((V Nothing False Unkwn) :: contRegs')
+                      ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesValue :: gs') contUc (v :: contRegs')
+    GuaranteesType : ContWinding regs' gs' contUc' contRegs' =>
+                     ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesType :: gs') (S contUc') ((V (Just vTy) False $ Undet ? contUc') :: contRegs')
+    GuaranteesNothing : ContWinding regs' gs' contUc contRegs' =>
+                        ContWinding (v' :: regs') (SavesNothing :: gs') contUc ((V Nothing False Unkwn) :: contRegs')
 
   public export
   data IsSankIn : {-post-}Context n -> (ctx : Context n) -> Type where
@@ -282,8 +286,8 @@ namespace Program
                           Ctx ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs `IsSankIn` Ctx ((L savedCtx initCtx g ls) :: ols') uc regs False fs
     ItIsSankInWithLoop : Ctx contOls' contUc' contRegs' True contFs' `IsSankIn` Ctx ols uc regs False fs =>
                          -- context to-loop update happens here
-                         ContWinding contRegs' g contUc contRegs =>
-                         Ctx ((L (contUc', contRegs') contRegs g []) :: contOls') contUc contRegs True contFs' `IsSankIn` Ctx ols uc regs False fs
+                         ContWinding contRegs' gs contUc contRegs =>
+                         Ctx ((L (contUc', contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs' `IsSankIn` Ctx ols uc regs False fs
 
 
   public export
@@ -356,9 +360,9 @@ namespace Program
     [search savedCtx initRegs gs uc finalRegs]
     -- 2 major steps: summarize the iteration and make the new context
     ContUnwindingBase : ContUnwinding (savedUc, []) [] [] uc [] savedUc []
-    ContUnwindingStep : ContUnwinding (savedUc, savedRegs') initRegs' g' uc finalRegs' contUc' contRegs' =>
-                        ValueUnwinding contUc' savedV vg initV finalV contUc contV =>
-                        ContUnwinding (savedUc, savedV :: savedRegs') (initV :: initRegs') (vg :: g') uc (finalV :: finalRegs') contUc (contV :: contRegs') 
+    ContUnwindingStep : ContUnwinding (savedUc, savedRegs') initRegs' gs' uc finalRegs' contUc' contRegs' =>
+                        ValueUnwinding contUc' savedV g initV finalV contUc contV =>
+                        ContUnwinding (savedUc, savedV :: savedRegs') (initV :: initRegs') (g :: gs') uc (finalV :: finalRegs') contUc (contV :: contRegs') 
 
   public export
   data IsStrictlyMonotoneVExpr : VExpr (Just I) isDet -> VExpr (Just I) isDet -> Type where
@@ -376,9 +380,9 @@ namespace Program
   data Edge : (ctx : Context n) -> {-post-}Context n -> Type where
     [search ctx]
     Backward : HasStrictlyMonotoneValue initCtx regs =>
-               ContUnwinding savedCtx initCtx g uc regs contUc contRegs => -- context from-loop update happens here
+               ContUnwinding savedCtx initCtx gs uc regs contUc contRegs => -- context from-loop update happens here
                Concat ls fs contFs =>
-               Edge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs True fs) (Ctx ols' contUc contRegs False contFs)
+               Edge (Ctx ((L savedCtx initCtx gs ls) :: ols') uc regs True fs) (Ctx ols' contUc contRegs False contFs)
     Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
