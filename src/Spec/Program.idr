@@ -1,10 +1,8 @@
 module Spec.Program
 
-import Data.Fin
+import public Data.Fin
 import Data.Vect
 import Decidable.Equality
-
-import Spec.Tree
 
 
 %default total
@@ -384,7 +382,7 @@ namespace Program
     Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
-data Program : Context n -> Type where
+data Program : (ctx : Context n) -> Type where
   -- Linear Block
   Assign : (target : Fin n) -> (i : Fin n) ->
            Program (Ctx ols uc (duplicate target i regs) True fs) ->
@@ -397,7 +395,7 @@ data Program : Context n -> Type where
           Program $ Ctx ols uc regs True fs
 
   -- Control Flow
-  Sink : contCtx `IsSankIn` ctx => Program contCtx -> Program ctx
+  Sink : {1 ctx, contCtx : _} -> contCtx `IsSankIn` ctx => Program contCtx -> Program ctx
 
   Source0 : Program (Ctx [] uc regs False fs) ->
             Program (Ctx [] uc regs True fs)
@@ -424,6 +422,7 @@ test1 = Assign 0 1 $
         Source0 $
         Finish
 
+public export
 test2 : Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det $ RawI 1)] True []
 test2 = Source1 @{Forward Free} $
         -- Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det _ $ RawI 1)] False [(1, [...])]
