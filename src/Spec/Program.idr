@@ -430,7 +430,7 @@ public export
 test2 : Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det $ RawI 1)] True []
 test2 = Source1 @{Forward Free} $
         -- Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det _ $ RawI 1)] False [(1, [...])]
-        Sink @{ItIsSankInWithLoop {g=[SavesType, SavesValue]} @{ItIsSankInViaFree @{JustPick @{PickHit}}} @{GuaranteesType @{GuaranteesValue @{JustGuarantees}}}} $
+        Sink @{ItIsSankInWithLoop {gs=[SavesType, SavesValue]} @{ItIsSankInViaFree @{JustPick @{PickHit}}} @{GuaranteesType @{GuaranteesValue @{JustGuarantees}}}} $
                                       
         -- After ItIsSankInViaFree
         -- Program {n=2} $ Ctx [] 1 [V _ _ (Undet I 0), V _ _ (Det _ $ RawI 1)] True []
