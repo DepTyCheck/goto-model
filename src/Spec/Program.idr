@@ -71,23 +71,11 @@ namespace Value
     Unkwn : VExpr Nothing False
     Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr (Just vTy) True
     Undet : (vTy : VType) -> (idx : Nat) -> VExpr (Just vTy) False
-    Op : (idx : Nat) -> (vop : ValueOp) -> VExpr (Just vTyL) isDetL -> VExpr (Just vTyR) isDetR ->
+    Op : (vop : ValueOp) -> VExpr (Just vTyL) isDetL -> VExpr (Just vTyR) isDetR ->
          IsOpVTypes vop vTyL vTyR vTy => BoolAnd isDetL isDetR isDet =>
          VExpr (Just vTy) isDet
 
   %name VExpr vExpr
-
-  %hint
-  public export
-  unkwnIsSingleton : (vExpr : VExpr Nothing isDet) -> vExpr = Unkwn
-  unkwnIsSingleton Unkwn = Refl
-
-  public export
-  determinedIsNeverUnkwn : (vExpr : VExpr mVTy True) -> (vTy ** mVTy = Just vTy)
-  determinedIsNeverUnkwn (Det {vTy} rawV) = (vTy ** Refl)
-  determinedIsNeverUnkwn (Op idx Add vExprL vExprR @{ItIsAddVTypes}) = (I ** Refl)
-  determinedIsNeverUnkwn (Op idx And vExprL vExprR @{ItIsAndVTypes}) = (B ** Refl)
-  determinedIsNeverUnkwn (Op idx Or vExprL vExprR @{ItIsOrVTypes}) = (B ** Refl)
 
   public export
   record Value where
@@ -104,12 +92,12 @@ namespace Value
     ItHasType : HasType (V (Just vTy) _ _) vTy
 
   public export
-  data Produce : (uc' : Nat) -> (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> Nat -> Value -> Type where
-    [search uc' vop lv rv]
+  data Produce : (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> Value -> Type where
+    [search vop lv rv]
     -- TODO: ProduceDet
     ProduceOp : IsOpVTypes vop vTyL vTyR vTy =>
                 BoolAnd isDetL isDetR isDet =>
-                Produce uc' vop (V (Just vTyL) isDetL vExprL) (V (Just vTyR) isDetR vExprR) (S uc') $ V (Just vTy) isDet (Op uc' vop vExprL vExprR)
+                Produce vop (V (Just vTyL) isDetL vExprL) (V (Just vTyR) isDetR vExprR) $ V (Just vTy) isDet (Op vop vExprL vExprR)
 
   public export
   data VectValue : Nat -> Type where
@@ -143,9 +131,13 @@ namespace Value
 namespace Context
   namespace Source
     public export
-    data ListSource : (n : Nat) -> Type where
+    data Source : Nat -> Type where
+      Src : Nat -> VectValue n -> Source n
+ 
+    public export
+    data ListSource : Nat -> Type where
       Nil : ListSource n
-      (::) : (Nat, VectValue n) {-context at the moment of the jump-} -> ListSource n -> ListSource n
+      (::) : Source n{-context at the moment of the jump-} -> ListSource n -> ListSource n
 
     public export
     data Concat : (leftSs : ListSource n) -> (rightSs : ListSource n) -> ListSource n -> Type where
@@ -160,7 +152,7 @@ namespace Context
       LengthNonEmpty : Length ss' l' -> Length (s :: ss') (S l')
 
     public export
-    data Index : (i : Fin l) -> (ss : ListSource n) -> Length ss l => (Nat, VectValue n) -> Type where
+    data Index : (i : Fin l) -> (ss : ListSource n) -> Length ss l => Source n -> Type where
       [search i ss]
       IndexBase : Index FZ (s :: ss') @{_} s
       IndexStep : Index i' ss' @{lenPrf'} s -> Index (FS i') (s' :: ss') @{LengthNonEmpty lenPrf'} s
@@ -187,10 +179,14 @@ namespace Context
 
   namespace Loop
     public export
+    data SavedContext : Nat -> Type where
+      SCtx : {-undeterminedCount-}Nat -> {-regs-}VectValue n -> SavedContext n
+
+    public export
     record Loop (n : Nat) where
       constructor L
 
-      savedContext : ({-undeterminedCount-}Nat, {-regs-}VectValue n)
+      savedContext : SavedContext n
       initialContext : VectValue n -- context at the moment of the loop iteration beginning
       contextGuarantees : Guarantees n
       lockedSources : ListSource n
@@ -222,7 +218,7 @@ namespace Program
   data PickHelper : (ss : ListSource n) -> (css : ListSource n) -> Nat -> VectValue n -> ListSource n -> Type where
     [search ss css]
     PickMiss : PickHelper ss' (s :: css) resUc resVs resSs => PickHelper (s :: ss') css resUc resVs resSs
-    PickHit : Concat ss' css resSs => PickHelper ((uc, regs) :: ss') css uc regs resSs
+    PickHit : Concat ss' css resSs => PickHelper ((Src uc regs) :: ss') css uc regs resSs
   
   -- TODO: only simple case with 1 picked source covered. There is also
   -- complex case with many picked sources and merge of their values.
@@ -237,7 +233,7 @@ namespace Program
   data ValueWinding : (uc : Nat) -> (oldV : Value) -> Nat -> Value -> Type where
     [search uc oldV]
     ResetUndetIndex : ValueWinding uc (V (Just vTy) False $ Undet ? oldIdx) (S uc) (V (Just vTy) False $ Undet ? uc)
-    EraseOp : ValueWinding uc (V (Just vTy) False $ Op oldIdx vop vExprL vExprR @{ovtPrf} @{notAllPrf}) (S uc) (V (Just vTy) False $ Undet ? uc)
+    EraseOp : ValueWinding uc (V (Just vTy) False $ Op vop vExprL vExprR @{ovtPrf} @{andPrf}) (S uc) (V (Just vTy) False $ Undet ? uc)
     SkipDet : ValueWinding uc (V (Just vTy) True vExpr) uc (V (Just vTy) True vExpr)
 
   public export
@@ -264,16 +260,15 @@ namespace Program
     ItIsSankInWithLoop : Ctx contOls' contUc' contRegs' True contFs' `IsSankIn` Ctx ols uc regs False fs =>
                          -- context to-loop update happens here
                          ContWinding contRegs' gs contUc contRegs =>
-                         Ctx ((L (contUc', contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs' `IsSankIn` Ctx ols uc regs False fs
-
+                         Ctx ((L (SCtx contUc' contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs' `IsSankIn` Ctx ols uc regs False fs
 
   public export
   data ForwardEdge : (ctx : Context n) -> {-post-}Context n -> Type where
     [search ctx]
     -- When a forward edge is attached in a not linear context,
     -- the edge relates to the last completed linear block
-    Free : ForwardEdge (Ctx [] uc regs _ fs) $ Ctx [] uc regs False ((uc, regs) :: fs)
-    Locked : ForwardEdge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $ Ctx ((L savedCtx initCtx g $ (uc, regs) :: ls) :: ols') uc regs False fs
+    Free : ForwardEdge (Ctx [] uc regs _ fs) $ Ctx [] uc regs False ((Src uc regs) :: fs)
+    Locked : ForwardEdge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $ Ctx ((L savedCtx initCtx g $ (Src uc regs) :: ls) :: ols') uc regs False fs
 
 
   public export
@@ -286,16 +281,16 @@ namespace Program
     SelfDependsStep : SelfDepends initExpr vExprL sdL =>
                       SelfDepends initExpr vExprR sdR =>
                       BoolAnd sdL sdR sd =>
-                      SelfDepends initExpr (Op _ _ vExprL vExprR @{ovtPrf} @{notAllPrf}) sd
+                      SelfDepends initExpr (Op _ vExprL vExprR @{ovtPrf} @{andPrf}) sd
 
   public export
   data ExprUnwinding : (uc' : Nat) -> (savedExpr : VExpr mVTy savedIsDet) ->
                        (initExpr : VExpr mVTy initIsDet) -> (finalExpr : VExpr mVTy isDet) ->
                        Nat -> VExpr mVTy isDet -> Type where
     [search uc' savedExpr initExpr finalExpr]
-    ExprUnwindingId : ExprUnwinding uc savedExpr initExpr initExpr uc savedExpr
-    ExprUnwindingDet : ExprUnwinding uc savedExpr (Undet _ _) (Det rawV) uc (Det rawV)
-    ExprUnwindingOp : ExprUnwinding uc' savedExpr initExpr (Op _ _ _ _ @{ovtPrf} @{notAllPrf}) (S uc') (Undet ? uc')
+    ExprUnwindingDet : ExprUnwinding {isDet=True} uc savedExpr initExpr finalExpr uc finalExpr
+    ExprUnwindingId : ExprUnwinding {isDet=False} uc savedExpr initExpr initExpr uc savedExpr
+    ExprUnwindingOp : ExprUnwinding {isDet=False} uc' savedExpr initExpr (Op _ _ _ @{_} @{_}) (S uc') (Undet ? uc')
 
   public export
   data Squash : (uc' : Nat) -> (savedExpr : VExpr (Just vTy) savedIsDet) ->
@@ -314,8 +309,8 @@ namespace Program
                     (uc' : Nat) -> (vExpr' : VExpr mVTy isDet) ->
                     Nat -> VExpr mVTy isDet -> Type where
     [search uc' vExpr']
-    ResetIndexHit : ResetIndex {isDet=False} {mVTy=Just vTy} uc' vExpr' (S uc') $ Undet vTy uc'
     ResetIndexMiss : ResetIndex {isDet=True} uc v uc v
+    ResetIndexHit : ResetIndex {isDet=False} {mVTy=Just vTy} uc' vExpr' (S uc') $ Undet vTy uc'
 
   public export
   data ValueUnwinding : (uc' : Nat) -> (savedV : Value) -> (g : Guarantee) ->
@@ -327,23 +322,22 @@ namespace Program
                            ValueUnwinding uc' (V (Just vTy) savedIsDet savedExpr) SavesType (V (Just vTy) initIsDet initExpr) (V (Just vTy) isDet finalExpr) uc $ V (Just vTy) isDet vExpr
     FinalIsIntroduced : ResetIndex uc' vExpr' uc vExpr =>
                         ValueUnwinding uc' _ SavesNothing _ (V (Just vTy) isDet vExpr') uc $ V (Just vTy) isDet vExpr
-    -- TODO: maybe I should work differently with completely unknown values or count them properly
     FinalIsUnknown : ValueUnwinding uc savedV SavesNothing (V _ _ _) (V Nothing _ _) uc $ V Nothing False Unkwn
 
   public export
-  data ContUnwinding : (savedCtx : (Nat, VectValue n)) ->
+  data ContUnwinding : (savedCtx : SavedContext n) ->
                        (initRegs : VectValue n) -> (gs : Guarantees n) -> (uc : Nat) ->(finalRegs : VectValue n) ->
                        Nat -> VectValue n -> Type where
     [search savedCtx initRegs gs uc finalRegs]
     -- 2 major steps: summarize the iteration and make the new context
-    ContUnwindingBase : ContUnwinding (savedUc, []) [] [] uc [] savedUc []
-    ContUnwindingStep : ContUnwinding (savedUc, savedRegs') initRegs' gs' uc finalRegs' contUc' contRegs' =>
+    ContUnwindingBase : ContUnwinding (SCtx savedUc []) [] [] uc [] savedUc []
+    ContUnwindingStep : ContUnwinding (SCtx savedUc savedRegs') initRegs' gs' uc finalRegs' contUc' contRegs' =>
                         ValueUnwinding contUc' savedV g initV finalV contUc contV =>
-                        ContUnwinding (savedUc, savedV :: savedRegs') (initV :: initRegs') (g :: gs') uc (finalV :: finalRegs') contUc (contV :: contRegs') 
+                        ContUnwinding (SCtx savedUc $ savedV :: savedRegs') (initV :: initRegs') (g :: gs') uc (finalV :: finalRegs') contUc (contV :: contRegs') 
 
   public export
   data IsStrictlyMonotoneVExpr : VExpr (Just I) isDet -> VExpr (Just I) isDet -> Type where
-    ItIsInc : IsStrictlyMonotoneVExpr initExpr (Op _ Add initExpr (Det $ RawI 1) @{ovtPrf} @{notAllPrf})
+    ItIsInc : IsStrictlyMonotoneVExpr initExpr (Op Add initExpr (Det $ RawI 1) @{ovtPrf} @{andPrf})
     -- TODO: analyze initExpr and vExpr
 
   public export
@@ -370,8 +364,8 @@ data Program : (ctx : Context n) -> Type where
            Program $ Ctx ols uc regs True fs
   RegOp : (vop : ValueOp) -> (target : Fin n) -> (li : Fin n) -> (ri : Fin n) ->
           Index li regs lv => Index ri regs rv =>
-          Produce uc vop lv rv contUc contV =>
-          Program (Ctx ols contUc (replaceAt target contV regs) True fs) ->
+          Produce vop lv rv contV =>
+          Program (Ctx ols uc (replaceAt target contV regs) True fs) ->
           Program $ Ctx ols uc regs True fs
 
   -- Control Flow
@@ -390,6 +384,51 @@ data Program : (ctx : Context n) -> Type where
   Finish : Finished ctx => Program ctx
 
 %name Program prog
+
+namespace Decidable
+  public export
+  DecEq VType where 
+    decEq B B = Yes Refl
+    decEq B I = No $ \case Refl impossible
+    decEq I I = Yes Refl
+    decEq I B = No $ \case Refl impossible
+
+  public export
+  DecEq MaybeVType where
+    decEq Nothing Nothing = Yes Refl
+    decEq (Just a) (Just b) = case decEq a b of
+                                   (Yes Refl) => Yes Refl
+                                   (No contra) => No $ \case Refl => contra Refl
+    decEq Nothing (Just b) = No $ \case Refl impossible
+    decEq (Just a) Nothing = No $ \case Refl impossible
+
+  public export
+  DecEq ValueOp where
+    decEq Add Add = Yes Refl
+    decEq Add And = No $ \case Refl impossible
+    decEq Add Or = No $ \case Refl impossible
+    decEq And And = Yes Refl
+    decEq And Add = No $ \case Refl impossible
+    decEq And Or = No $ \case Refl impossible
+    decEq Or Or = Yes Refl
+    decEq Or Add = No $ \case Refl impossible
+    decEq Or And = No $ \case Refl impossible
+
+  public export
+  DecEq (RawValue I) where
+    decEq (RawI a) (RawI b) = case decEq a b of
+                                   (Yes Refl) => Yes Refl
+                                   (No contra) => No $ \case Refl => contra Refl
+
+  public export
+  DecEq (RawValue B) where
+    decEq (RawB a) (RawB b) = case decEq a b of
+                                   (Yes Refl) => Yes Refl
+                                   (No contra) => No $ \case Refl => contra Refl
+
+  public export
+  DecEq (VExpr Nothing False) where
+    decEq Unkwn Unkwn = Yes Refl
 
 
 test0 : Program {n=2} $ Ctx [] Z [V _ _ (Det $ RawI 1), V _ _ (Det $ RawB True)] True []
@@ -425,5 +464,5 @@ test2 = Source1 @{Forward Free} $
         Finish
 
 -- TODO: doesn't work if I write "test2' = %search"
-test2' : SelfDepends (Undet I 0) (Op 1 Add (Undet I 0) (Det $ RawI 1)) True
+test2' : SelfDepends (Undet I 0) (Op Add (Undet I 0) (Det $ RawI 1)) True
 test2' = SelfDependsStep @{SelfDependsUndet} @{SelfDependsDet}
