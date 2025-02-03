@@ -15,7 +15,7 @@ import System.Random.Pure.StdGen
 
 import Test.DepTyCheck.Gen
 import Show.Program
-{-import Gens.Auto.Derivation.Program
+import Gens.Auto.Derivation.Program
 
 
 %ambiguity_depth 1003
@@ -47,9 +47,9 @@ run = do
            putStrLn "Successful"
            putStrLn test
          Nothing => do
-           putStrLn "Failed" -}
+           putStrLn "Failed"
 
 
 covering
 main : IO ()
-main = putStr (show test2) -- runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure
+main = {-putStr (show test2) -} runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure

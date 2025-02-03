@@ -10,17 +10,28 @@ import Decidable.Equality
 
 namespace Logic
   public export
+  data OnlyOne : Bool -> Bool -> Type where
+    OnlyFirst : OnlyOne True False
+    OnlySecond : OnlyOne False True
+
+  public export
   data NotAll : Bool -> Bool -> Type where
     NotFirst : NotAll False _
     NotSecond : NotAll _ False
 
   public export
-  data BoolAnd : Bool -> Bool -> Bool -> Type where
+  data BoolAnd : (a : Bool) -> (b : Bool) -> Bool -> Type where
+    [search a b]
     TrueAndTrue : BoolAnd True True True
     FalseAndAny : BoolAnd False _ False
     AnyAndFalse : BoolAnd _ False False
 
 namespace Nat
+  public export
+  data NatSum : Nat -> Nat -> Nat -> Type where
+    NatSumBase : NatSum a Z a
+    NatSumStep : NatSum a b c => NatSum a (S b) (S c)
+
   public export
     data NotSame : Nat -> Nat -> Type where
       NotSameLeftBase : NotSame Z (S m')
@@ -61,8 +72,8 @@ namespace Value
     Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr (Just vTy) True
     Undet : (vTy : VType) -> (idx : Nat) -> VExpr (Just vTy) False
     Op : (idx : Nat) -> (vop : ValueOp) -> VExpr (Just vTyL) isDetL -> VExpr (Just vTyR) isDetR ->
-         IsOpVTypes vop vTyL vTyR vTy => NotAll isDetL isDetR =>
-         VExpr (Just vTy) False
+         IsOpVTypes vop vTyL vTyR vTy => BoolAnd isDetL isDetR isDet =>
+         VExpr (Just vTy) isDet
 
   %name VExpr vExpr
 
@@ -74,6 +85,9 @@ namespace Value
   public export
   determinedIsNeverUnkwn : (vExpr : VExpr mVTy True) -> (vTy ** mVTy = Just vTy)
   determinedIsNeverUnkwn (Det {vTy} rawV) = (vTy ** Refl)
+  determinedIsNeverUnkwn (Op idx Add vExprL vExprR @{ItIsAddVTypes}) = (I ** Refl)
+  determinedIsNeverUnkwn (Op idx And vExprL vExprR @{ItIsAndVTypes}) = (B ** Refl)
+  determinedIsNeverUnkwn (Op idx Or vExprL vExprR @{ItIsOrVTypes}) = (B ** Refl)
 
   public export
   record Value where
@@ -86,47 +100,16 @@ namespace Value
   %name Value v
 
   public export
-  data IsOpValues : (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> VType -> Type where
-    [search vop lv rv]
-    ItIsAddValues : IsOpValues Add (V (Just I) _ _) (V (Just I) _ _) I
-    ItIsAndValues : IsOpValues And (V (Just B) _ _) (V (Just B) _ _) B
-    ItIsOrValues : IsOpValues Or (V (Just B) _ _) (V (Just B) _ _) B
+  data HasType : Value -> VType -> Type where
+    ItHasType : HasType (V (Just vTy) _ _) vTy
 
   public export
-  opValuesAreKnown : IsOpValues vop lv rv vTy -> ((vTyL ** lv.mtype = Just vTyL), (vTyR ** rv.mtype = Just vTyR))
-  opValuesAreKnown ItIsAddValues = ((I ** Refl), (I ** Refl))
-  opValuesAreKnown ItIsAndValues = ((B ** Refl), (B ** Refl))
-  opValuesAreKnown ItIsOrValues = ((B ** Refl), (B ** Refl))
-
-  public export
-  opValuesAreOpVTypes : IsOpValues vop (V (Just vTyL) _ _) (V (Just vTyR) _ _) vTy -> IsOpVTypes vop vTyL vTyR vTy
-  opValuesAreOpVTypes ItIsAddValues = ItIsAddVTypes
-  opValuesAreOpVTypes ItIsAndValues = ItIsAndVTypes
-  opValuesAreOpVTypes ItIsOrValues = ItIsOrVTypes
-
-  public export
-  produce : (uc : Nat) -> (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> {vTy : _} -> IsOpValues vop lv rv vTy => (Nat, Value)
-  produce uc vop (V mVTyL False vExprL) (V mVTyR isDetR vExprR) @{ovPrf} = do
-    let ((vTyL ** Refl), (vTyR ** Refl)) = opValuesAreKnown ovPrf
-    (S uc, V (Just vTy) False $ Op {vTyL} {vTyR} uc vop vExprL vExprR @{opValuesAreOpVTypes ovPrf})
-  produce uc vop (V mVTyL True vExprL) (V mVTyR False vExprR) @{ovPrf} = do
-    let ((vTyL ** Refl), (vTyR ** Refl)) = opValuesAreKnown ovPrf
-    (S uc, V (Just vTy) False $ Op uc vop vExprL vExprR @{opValuesAreOpVTypes ovPrf})
-  -- TODO: cannot make case split on ovPrf, compiler fails
-  produce uc vop (V mVTyL True vExprL) (V mVTyR True vExprR) @{ovPrf} = do
-    let ((vTyL ** Refl), (vTyR ** Refl)) = opValuesAreKnown ovPrf
-    let ovtPrf = opValuesAreOpVTypes ovPrf
-    case ovtPrf of
-         ItIsAddVTypes => (uc, V (Just I) True $ Det $ RawI $ (fst $ getI vExprL) + (fst $ getI vExprR))
-         ItIsAndVTypes => (uc, V (Just B) True $ Det $ RawB $ (fst $ getB vExprL) && (fst $ getB vExprR))
-         ItIsOrVTypes => (uc, V (Just B) True $ Det $ RawB $ (fst $ getB vExprL) || (fst $ getB vExprR))
-    where
-      getI : (vExpr : VExpr (Just I) True) -> (x ** vExpr = (Det $ RawI x))
-      getI (Det $ RawI x) = (x ** Refl)
-
-      getB : (vExpr : VExpr (Just B) True) -> (b ** vExpr = (Det $ RawB b))
-      getB (Det $ RawB b) = (b ** Refl)
-
+  data Produce : (uc' : Nat) -> (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> Nat -> Value -> Type where
+    [search uc' vop lv rv]
+    -- TODO: ProduceDet
+    ProduceOp : IsOpVTypes vop vTyL vTyR vTy =>
+                BoolAnd isDetL isDetR isDet =>
+                Produce uc' vop (V (Just vTyL) isDetL vExprL) (V (Just vTyR) isDetR vExprR) (S uc') $ V (Just vTy) isDet (Op uc' vop vExprL vExprR)
 
   public export
   data VectValue : Nat -> Type where
@@ -134,13 +117,6 @@ namespace Value
     (::) : Value -> VectValue n -> VectValue (S n)
 
   %name VectValue vs
-
-  public export
-  data HasType : Fin n -> VType -> VectValue n -> Type where
-    HasTypeBase : HasType FZ vTy $ (V (Just vTy) _ _) :: vs'
-    HasTypeStep : HasType i vTy vs' -> HasType (FS i) vTy (v :: vs')
-
-  %name HasType htPrf
   
   public export
   data Index : (i : Fin n) -> (vs : VectValue n) -> Value -> Type where
@@ -151,6 +127,7 @@ namespace Value
   public export
   index : Fin n -> VectValue n -> Value
   index FZ (v :: vs) = v
+
   index (FS i') (v :: vs) = index i' vs
 
   public export
@@ -386,22 +363,15 @@ namespace Program
     Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
-data Uncurry : (p : (Nat, Value)) -> Nat -> Value -> Type where
-  [search p]
-  DoUncurry : Uncurry (x, v) x v
-
-public export
 data Program : (ctx : Context n) -> Type where
   -- Linear Block
   Assign : (target : Fin n) -> (i : Fin n) ->
            Program (Ctx ols uc (duplicate target i regs) True fs) ->
            Program $ Ctx ols uc regs True fs
   RegOp : (vop : ValueOp) -> (target : Fin n) -> (li : Fin n) -> (ri : Fin n) ->
-          {ols : _} -> {uc : _} -> {regs : _} -> {fs : _} -> {lv, rv : _} -> {vTy : _} -> {newUc : _} -> {newValue : _} ->
-          Index li regs lv => Index ri regs rv => IsOpValues vop lv rv vTy =>
-          let newProd : ?; newProd = produce uc vop lv rv in  -- TODO: reduce function?...
-          Uncurry newProd newUc newValue =>
-          Program (Ctx ols newUc (replaceAt target newValue regs) True fs) ->
+          Index li regs lv => Index ri regs rv =>
+          Produce uc vop lv rv contUc contV =>
+          Program (Ctx ols contUc (replaceAt target contV regs) True fs) ->
           Program $ Ctx ols uc regs True fs
 
   -- Control Flow
