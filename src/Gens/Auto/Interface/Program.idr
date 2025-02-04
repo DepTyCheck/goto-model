@@ -6,4 +6,4 @@ import public Spec.Program
 
 
 public export
-genProgram : Fuel -> (ctx : Context n) -> Gen MaybeEmpty (Program ctx)
+genProgram : Fuel -> {n : _} -> (ctx : Context n) -> Gen MaybeEmpty (Program ctx)
