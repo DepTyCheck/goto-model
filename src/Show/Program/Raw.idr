@@ -21,7 +21,7 @@ Show (VExpr mVTy isDet) where
   show (Det (RawI i)) = "I \{show i}"
   show (Det (RawB b)) = "B \{show b}"
   show (Undet vTy idx) = "Undet(\{show vTy}, \{show idx})"
-  show (Op idx vop vExprL vExprR) = "\{show vExprL} \show{vop}(\show{idx}) \{show vExprR}"
+  show (Op vop vExprL vExprR) = "(\{show vExprL} \show{vop} \{show vExprR})"
 
 public export
 Show Value where
@@ -35,6 +35,10 @@ Show (VectValue n) where
       show' [] = ""
       show' [v] = show v
       show' (v1 :: v2 :: vs'') = "\{show v1}, " <+> show' (v2 :: vs'')
+
+public export
+Show (Source n) where
+  show (Src uc vs) = "(\{show uc}, \{show vs})"
 
 public export
 Show (ListSource n) where
