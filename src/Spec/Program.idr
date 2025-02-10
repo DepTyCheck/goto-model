@@ -33,10 +33,10 @@ namespace Nat
     NatSumStep : NatSum a b c => NatSum a (S b) (S c)
 
   public export
-    data NotSame : Nat -> Nat -> Type where
-      NotSameLeftBase : NotSame Z (S m')
-      NotSameRightBase : NotSame (S n') Z
-      NotSameStep : NotSame n m => NotSame (S n) (S m)
+  data NotSame : Nat -> Nat -> Type where
+    NotSameLeftBase : NotSame Z (S m')
+    NotSameRightBase : NotSame (S n') Z
+    NotSameStep : NotSame n m => NotSame (S n) (S m)
 
 namespace Value
   public export
@@ -63,15 +63,17 @@ namespace Value
 
   public export
   data RawValue : VType -> Type where
-    RawI : Int32 -> RawValue I
+    RawI : Nat -> RawValue I
     RawB : Bool -> RawValue B
 
   public export
   data VExpr : MaybeVType -> Bool -> Type where
     Unkwn : VExpr Nothing False
     Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr (Just vTy) True
-    Undet : (vTy : VType) -> (idx : Nat) -> VExpr (Just vTy) False
-    Op : (vop : ValueOp) -> VExpr (Just vTyL) isDetL -> VExpr (Just vTyR) isDetR ->
+    Undet : (vTy : _) -> (idx : Nat) -> VExpr (Just vTy) False
+    Op : (vop : ValueOp) ->
+         {vTyL, vTyR : _} -> {isDetL, isDetR : _} ->
+         VExpr (Just vTyL) isDetL -> VExpr (Just vTyR) isDetR ->
          IsOpVTypes vop vTyL vTyR vTy => BoolAnd isDetL isDetR isDet =>
          VExpr (Just vTy) isDet
 
@@ -337,7 +339,7 @@ namespace Program
 
   public export
   data IsStrictlyMonotoneVExpr : VExpr (Just I) isDet -> VExpr (Just I) isDet -> Type where
-    ItIsInc : IsStrictlyMonotoneVExpr initExpr (Op Add initExpr (Det $ RawI 1) @{ovtPrf} @{andPrf})
+    ItIsInc : IsStrictlyMonotoneVExpr initExpr (Op Add initExpr (Det $ RawI (S a')) @{ovtPrf} @{andPrf})
     -- TODO: analyze initExpr and vExpr
 
   public export
@@ -385,7 +387,16 @@ data Program : (ctx : Context n) -> Type where
 
 %name Program prog
 
+
 namespace Decidable
+  public export
+  DecEq (BoolAnd a b c) where
+    decEq TrueAndTrue TrueAndTrue = Yes Refl
+    decEq FalseAndAny FalseAndAny = Yes Refl
+    decEq FalseAndAny AnyAndFalse = No $ \case Refl impossible
+    decEq AnyAndFalse FalseAndAny = No $ \case Refl impossible
+    decEq AnyAndFalse AnyAndFalse = Yes Refl
+
   public export
   DecEq VType where 
     decEq B B = Yes Refl
@@ -429,6 +440,61 @@ namespace Decidable
   public export
   DecEq (VExpr Nothing False) where
     decEq Unkwn Unkwn = Yes Refl
+
+  %ambiguity_depth 5
+
+  public export
+  DecEq (VExpr (Just I) isDet) where
+    decEq (Det rawV1) (Det rawV2) = case decEq rawV1 rawV2 of
+                                         (Yes Refl) => Yes Refl
+                                         (No contra) => No $ \case Refl => contra Refl
+    decEq (Det rawV) (Op vop vExpr vExpr1) = No $ \case Refl impossible
+    decEq (Undet I idx1) (Undet I idx2) = case decEq idx1 idx2 of
+                                               (Yes Refl) => Yes Refl
+                                               (No contra) => No $ \case Refl => contra Refl
+    decEq (Undet I _) (Op vop vExpr vExpr1) = No $ \case Refl impossible
+    decEq (Op vop vExpr vExpr1) (Det rawV) = No $ \case Refl impossible
+    decEq (Op vop vExpr vExpr1) (Undet I _) = No $ \case Refl impossible
+    decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+          (Op vop' {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) with (decEq vop vop', decEq vTyL vTyL', decEq vTyR vTyR', decEq isDetL isDetL', decEq isDetR isDetR', ovtPrf, ovtPrf')
+      decEq (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd})
+            (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL' vExprR' @{ItIsAddVTypes} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, ItIsAddVTypes, ItIsAddVTypes) with (decEq vExprL vExprL', decEq vExprR vExprR', decEq boolAnd boolAnd')
+        decEq (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd})
+              (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, ItIsAddVTypes, ItIsAddVTypes) | (Yes Refl, Yes Refl, Yes Refl) = Yes Refl
+        decEq (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd})
+              (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, ItIsAddVTypes, ItIsAddVTypes) | (Yes Refl, Yes Refl, No contra) = No $ \case Refl => contra Refl
+        decEq (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd})
+              (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR' @{ItIsAddVTypes} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, ItIsAddVTypes, ItIsAddVTypes) | (Yes Refl, No contra, _) = No $ \case Refl => contra Refl
+        decEq (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL vExprR @{ItIsAddVTypes} @{boolAnd})
+              (Op Add {vTyL=I} {vTyR=I} {isDetL} {isDetR} vExprL' vExprR' @{ItIsAddVTypes} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, ItIsAddVTypes, ItIsAddVTypes) | (No contra, _, _) = No $ \case Refl => contra Refl
+      -- TODO: it's just a copy of the case above
+      decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+        (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, _, _) = do
+        case ovtPrf of
+             ItIsAddVTypes => do
+               case ovtPrf' of
+                    ItIsAddVTypes => do
+                      case decEq vExprL vExprL' of
+                           (Yes Refl) => do
+                             case decEq vExprR vExprR' of
+                                  (Yes Refl) => do
+                                    case decEq boolAnd boolAnd' of
+                                         (Yes Refl) => Yes Refl
+                                         (No contra) => No $ \case Refl => contra Refl
+                                  (No contra) => No $ \case Refl => contra Refl
+                           (No contra) => No $ \case Refl => contra Refl
+      decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+            (Op vop {vTyL} {vTyR} {isDetL} {isDetR=isDetR'} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, No contra, _, _) = No $ \case Refl => contra Refl
+      decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+            (Op vop {vTyL} {vTyR} {isDetL=isDetL'} {isDetR=isDetR'} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) | (Yes Refl, Yes Refl, Yes Refl, No contra, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+            (Op vop {vTyL} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) | (Yes Refl, Yes Refl, No contra, _, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+            (Op vop {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) | (Yes Refl, No contra, _, _, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op vop {vTyL} {vTyR} {isDetL} {isDetR} vExprL vExprR @{ovtPrf} @{boolAnd})
+            (Op vop' {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vExprL' vExprR' @{ovtPrf'} @{boolAnd'}) | (No contra, _, _, _, _, _, _) = No $ \case Refl => contra Refl
+
+%ambiguity_depth 3
 
 
 test0 : Program {n=2} $ Ctx [] Z [V _ _ (Det $ RawI 1), V _ _ (Det $ RawB True)] True []
