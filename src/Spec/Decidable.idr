@@ -26,6 +26,14 @@ public export
 {vTy : _} -> Injective (Spec.Value.Undet vTy) where
   injective Refl = Refl
 
+public export
+{mVTy : _} -> {isDet : _} -> Injective (V mVTy isDet) where
+  injective Refl = Refl
+
+public export
+{v : _} -> Injective (Spec.Value.(::) v) where
+  injective Refl = Refl
+
 
 public export
 DecEq (BoolAnd a b c) where
@@ -122,3 +130,17 @@ DecEq (VExpr {}) where
   decEq (Op {}) (Undet {}) = No $ \case Refl impossible
 
 %ambiguity_depth 3
+
+public export
+DecEq Value where
+  decEq (V mVTy isDet vExpr) (V mVTy' isDet' vExpr') with (decEq mVTy mVTy', decEq isDet isDet')
+    decEq (V mVTy isDet vExpr) (V mVTy isDet vExpr') | (Yes Refl, Yes Refl) = decEqCong $ decEq vExpr vExpr'
+    decEq (V mVTy isDet vExpr) (V mVTy isDet' vExpr') | (Yes Refl, No contra) = No $ \case Refl => contra Refl
+    decEq (V mVTy isDet vExpr) (V mVTy' isDet' vExpr') | (No contra, _) = No $ \case Refl => contra Refl
+
+public export
+DecEq (VectValue {}) where
+  decEq [] [] = Yes Refl
+  decEq (v :: vs) (v' :: vs') = case decEq v v' of
+                                     (Yes Refl) => decEqCong $ decEq vs vs'
+                                     (No contra) => No $ \case Refl => contra Refl
