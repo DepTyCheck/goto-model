@@ -6,16 +6,20 @@ import public Spec.Context
 
 
 public export
-data PickHelper : (ss : ListSource n) -> (css : ListSource n) -> Nat -> VectValue n -> ListSource n -> Type where
+data PickHelper : (ss : ListSource n) -> (css : ListSource n) ->
+                  Nat -> VectValue n -> ListSource n -> Type where
   [search ss css]
-  PickMiss : PickHelper ss' (s :: css) resUc resVs resSs => PickHelper (s :: ss') css resUc resVs resSs
-  PickHit : Concat ss' css resSs => PickHelper ((Src uc regs) :: ss') css uc regs resSs
+  PickMiss : PickHelper ss' (s :: css) resUc resVs resSs =>
+             PickHelper (s :: ss') css resUc resVs resSs
+  PickHit : Concat ss' css resSs =>
+            PickHelper ((Src uc regs) :: ss') css uc regs resSs
 
 -- TODO: only simple case with 1 picked source covered. There is also
 -- complex case with many picked sources and merge of their values.
 -- Also, merge may require to introduce new undetermined values
 public export
-data Pick : (ss : ListSource n) -> Nat -> VectValue n -> ListSource n -> Type where
+data Pick : (ss : ListSource n) ->
+            Nat -> VectValue n -> ListSource n -> Type where
   [search ss]
   JustPick : PickHelper ss [] resUc resVs resSs => Pick ss resUc resVs resSs
 
@@ -23,9 +27,12 @@ data Pick : (ss : ListSource n) -> Nat -> VectValue n -> ListSource n -> Type wh
 public export
 data ValueWinding : (uc : Nat) -> (oldV : Value) -> Nat -> Value -> Type where
   [search uc oldV]
-  ResetUndetIndex : ValueWinding uc (V (Just vTy) False $ Undet ? oldIdx) (S uc) (V (Just vTy) False $ Undet ? uc)
-  EraseOp : ValueWinding uc (V (Just vTy) False $ Op vop vExprL vExprR @{ovtPrf} @{andPrf}) (S uc) (V (Just vTy) False $ Undet ? uc)
-  SkipDet : ValueWinding uc (V (Just vTy) True vExpr) uc (V (Just vTy) True vExpr)
+  ResetUndetIndex : ValueWinding uc (V (Just vTy) False $ Undet ? oldIdx)
+                                (S uc) (V (Just vTy) False $ Undet ? uc)
+  EraseOp : ValueWinding uc (V (Just vTy) False $ Op vop vExprL vExprR @{ovtPrf} @{andPrf})
+                         (S uc) (V (Just vTy) False $ Undet ? uc)
+  SkipDet : ValueWinding uc (V (Just vTy) True vExpr)
+                         uc (V (Just vTy) True vExpr)
 
 public export
 data ContWinding : (regs : VectValue n) -> (gs : Guarantees n) ->
@@ -34,9 +41,11 @@ data ContWinding : (regs : VectValue n) -> (gs : Guarantees n) ->
   JustGuarantees : ContWinding [] [] Z []
   GuaranteesValue : ContWinding regs' gs' contUc' contRegs' =>
                     ValueWinding contUc' (V (Just vTy) isDet vExpr) contUc v =>
-                    ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesValue :: gs') contUc (v :: contRegs')
+                    ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesValue :: gs')
+                                contUc (v :: contRegs')
   GuaranteesType : ContWinding regs' gs' contUc' contRegs' =>
-                   ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesType :: gs') (S contUc') ((V (Just vTy) False $ Undet ? contUc') :: contRegs')
+                   ContWinding ((V (Just vTy) isDet vExpr) :: regs') (SavesType :: gs')
+                               (S contUc') ((V (Just vTy) False $ Undet ? contUc') :: contRegs')
   GuaranteesNothing : ContWinding regs' gs' contUc contRegs' =>
                       ContWinding (v' :: regs') (SavesNothing :: gs') contUc ((V Nothing False Unkwn) :: contRegs')
 
@@ -47,19 +56,24 @@ data IsSankIn : {-post-}Context n -> (ctx : Context n) -> Type where
   ItIsSankInViaFree : Pick fs contUc contRegs contFs =>
                       Ctx [] contUc contRegs True contFs `IsSankIn` Ctx [] uc regs False fs
   ItIsSankInViaLocked : Pick ls contUc contRegs contLs =>
-                        Ctx ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs `IsSankIn` Ctx ((L savedCtx initCtx g ls) :: ols') uc regs False fs
-  ItIsSankInWithLoop : Ctx contOls' contUc' contRegs' True contFs' `IsSankIn` Ctx ols uc regs False fs =>
+                        Ctx ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs
+                        `IsSankIn` Ctx ((L savedCtx initCtx g ls) :: ols') uc regs False fs
+  ItIsSankInWithLoop : Ctx contOls' contUc' contRegs' True contFs'
+                       `IsSankIn` Ctx ols uc regs False fs =>
                        -- context to-loop update happens here
                        ContWinding contRegs' gs contUc contRegs =>
-                       Ctx ((L (SCtx contUc' contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs' `IsSankIn` Ctx ols uc regs False fs
+                       Ctx ((L (SCtx contUc' contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs'
+                       `IsSankIn` Ctx ols uc regs False fs
 
 public export
 data ForwardEdge : (ctx : Context n) -> {-post-}Context n -> Type where
   [search ctx]
   -- When a forward edge is attached in a not linear context,
   -- the edge relates to the last completed linear block
-  Free : ForwardEdge (Ctx [] uc regs _ fs) $ Ctx [] uc regs False ((Src uc regs) :: fs)
-  Locked : ForwardEdge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $ Ctx ((L savedCtx initCtx g $ (Src uc regs) :: ls) :: ols') uc regs False fs
+  Free : ForwardEdge (Ctx [] uc regs _ fs) $
+                     Ctx [] uc regs False ((Src uc regs) :: fs)
+  Locked : ForwardEdge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $
+                       Ctx ((L savedCtx initCtx g $ (Src uc regs) :: ls) :: ols') uc regs False fs
 
 
 public export
@@ -110,7 +124,9 @@ data ValueUnwinding : (uc' : Nat) -> (savedV : Value) -> (g : Guarantee) ->
   [search uc' savedV g initV finalV]
   FinalValueIsPreserved : ValueUnwinding uc savedV SavesValue initV initV uc savedV
   FinalTypeIsPreserved : Squash uc' savedExpr initExpr finalExpr uc vExpr =>
-                         ValueUnwinding uc' (V (Just vTy) savedIsDet savedExpr) SavesType (V (Just vTy) initIsDet initExpr) (V (Just vTy) isDet finalExpr) uc $ V (Just vTy) isDet vExpr
+                         ValueUnwinding uc' (V (Just vTy) savedIsDet savedExpr) SavesType
+                                        (V (Just vTy) initIsDet initExpr) (V (Just vTy) isDet finalExpr)
+                                        uc $ V (Just vTy) isDet vExpr
   FinalIsIntroduced : ResetIndex uc' vExpr' uc vExpr =>
                       ValueUnwinding uc' _ SavesNothing _ (V (Just vTy) isDet vExpr') uc $ V (Just vTy) isDet vExpr
   FinalIsUnknown : ValueUnwinding uc savedV SavesNothing (V _ _ _) (V Nothing _ _) uc $ V Nothing False Unkwn
@@ -124,7 +140,9 @@ data ContUnwinding : (savedCtx : SavedContext n) ->
   ContUnwindingBase : ContUnwinding (SCtx savedUc []) [] [] uc [] savedUc []
   ContUnwindingStep : ContUnwinding (SCtx savedUc savedRegs') initRegs' gs' uc finalRegs' contUc' contRegs' =>
                       ValueUnwinding contUc' savedV g initV finalV contUc contV =>
-                      ContUnwinding (SCtx savedUc $ savedV :: savedRegs') (initV :: initRegs') (g :: gs') uc (finalV :: finalRegs') contUc (contV :: contRegs')
+                      ContUnwinding (SCtx savedUc $ savedV :: savedRegs') (initV :: initRegs')
+                                    (g :: gs') uc (finalV :: finalRegs')
+                                    contUc (contV :: contRegs')
 
 public export
 data IsStrictlyMonotoneVExpr : VExpr (Just I) isDet -> VExpr (Just I) isDet -> Type where
@@ -134,7 +152,8 @@ data IsStrictlyMonotoneVExpr : VExpr (Just I) isDet -> VExpr (Just I) isDet -> T
 public export
 data HasStrictlyMonotoneValue : VectValue n -> VectValue n -> Type where
   StrictlyMonotoneValueHere : IsStrictlyMonotoneVExpr initExpr finalExpr =>
-                              HasStrictlyMonotoneValue ((V (Just I) isDet initExpr) :: initRegs') ((V (Just I) isDet finalExpr) :: finalRegs')
+                              HasStrictlyMonotoneValue ((V (Just I) isDet initExpr) :: initRegs')
+                                                       ((V (Just I) isDet finalExpr) :: finalRegs')
   StrictlyMonotoneValueThere : HasStrictlyMonotoneValue initRegs' finalRegs' =>
                                HasStrictlyMonotoneValue (v1 :: initRegs') (v2 :: finalRegs')
 
@@ -144,7 +163,8 @@ data Edge : (ctx : Context n) -> {-post-}Context n -> Type where
   Backward : HasStrictlyMonotoneValue initCtx regs =>
              ContUnwinding savedCtx initCtx gs uc regs contUc contRegs => -- context from-loop update happens here
              Concat ls fs contFs =>
-             Edge (Ctx ((L savedCtx initCtx gs ls) :: ols') uc regs True fs) (Ctx ols' contUc contRegs False contFs)
+             Edge (Ctx ((L savedCtx initCtx gs ls) :: ols') uc regs True fs)
+                  (Ctx ols' contUc contRegs False contFs)
   Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
@@ -164,11 +184,14 @@ data Program : (ctx : Context n) -> Type where
 
   Source0 : Program {n} (Ctx [] uc regs False fs) ->
             Program {n} $ Ctx [] uc regs True fs
-  Source1 : Edge (Ctx ols uc regs True fs) (Ctx contOls contUc contRegs False contFs) =>
+  Source1 : Edge (Ctx ols uc regs True fs)
+                 (Ctx contOls contUc contRegs False contFs) =>
             Program {n} (Ctx contOls contUc contRegs False contFs) ->
             Program {n} $ Ctx ols uc regs True fs
-  Source2 : Edge (Ctx ols uc regs True fs) (Ctx contOls' contUc' contRegs' False contFs') =>
-            ForwardEdge (Ctx contOls' contUc' contRegs' False contFs') (Ctx contOls contUc contRegs False contFs) =>
+  Source2 : Edge (Ctx ols uc regs True fs)
+                 (Ctx contOls' contUc' contRegs' False contFs') =>
+            ForwardEdge (Ctx contOls' contUc' contRegs' False contFs')
+                        (Ctx contOls contUc contRegs False contFs) =>
             Program {n} (Ctx contOls contUc contRegs False contFs) ->
             Program {n} $ Ctx ols uc regs True fs
 
