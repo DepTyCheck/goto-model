@@ -1,4 +1,4 @@
-module Spec.Decidable
+module Spec.Value.Decidable
 
 
 import public Control.Function
