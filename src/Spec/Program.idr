@@ -151,26 +151,26 @@ public export
 data Program : (ctx : Context n) -> Type where
   -- Linear Block
   Assign : (target : Fin n) -> (i : Fin n) ->
-           Program (Ctx ols uc (duplicate target i regs) True fs) ->
-           Program $ Ctx ols uc regs True fs
+           Program {n} (Ctx ols uc (duplicate target i regs) True fs) ->
+           Program {n} $ Ctx ols uc regs True fs
   RegOp : (vop : ValueOp) -> (target : Fin n) -> (li : Fin n) -> (ri : Fin n) ->
           Index li regs lv => Index ri regs rv =>
           Produce vop lv rv contV =>
-          Program (Ctx ols uc (replaceAt target contV regs) True fs) ->
-          Program $ Ctx ols uc regs True fs
+          Program {n} (Ctx ols uc (replaceAt target contV regs) True fs) ->
+          Program {n} $ Ctx ols uc regs True fs
 
   -- Control Flow
-  Sink : {1 ctx, contCtx : _} -> contCtx `IsSankIn` ctx => Program contCtx -> Program ctx
+  Sink : {ctx, contCtx : _} -> contCtx `IsSankIn` ctx => Program contCtx -> Program ctx
 
   Source0 : Program {n} (Ctx [] uc regs False fs) ->
             Program {n} $ Ctx [] uc regs True fs
   Source1 : Edge (Ctx ols uc regs True fs) (Ctx contOls contUc contRegs False contFs) =>
-            Program (Ctx contOls contUc contRegs False contFs) ->
-            Program $ Ctx ols uc regs True fs
+            Program {n} (Ctx contOls contUc contRegs False contFs) ->
+            Program {n} $ Ctx ols uc regs True fs
   Source2 : Edge (Ctx ols uc regs True fs) (Ctx contOls' contUc' contRegs' False contFs') =>
             ForwardEdge (Ctx contOls' contUc' contRegs' False contFs') (Ctx contOls contUc contRegs False contFs) =>
-            Program (Ctx contOls contUc contRegs False contFs) ->
-            Program $ Ctx ols uc regs True fs
+            Program {n} (Ctx contOls contUc contRegs False contFs) ->
+            Program {n} $ Ctx ols uc regs True fs
 
   Finish : Finished ctx => Program ctx
 
