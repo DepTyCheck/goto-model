@@ -68,7 +68,9 @@ DecEq (RawValue vTy) where
 
 public export
 DecEq (IsOpVTypes {}) where
-  decEq ovtPrf ovtPrf' = ?hole123
+  decEq ItIsAddVTypes ItIsAddVTypes = Yes Refl
+  decEq ItIsAndVTypes ItIsAndVTypes = Yes Refl
+  decEq ItIsOrVTypes ItIsOrVTypes = Yes Refl
 
 %ambiguity_depth 5
 
