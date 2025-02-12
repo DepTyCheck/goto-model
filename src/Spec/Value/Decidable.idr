@@ -7,23 +7,23 @@ import public Spec.Value
 
 
 public export
-Injective Spec.Value.Just where
+Injective Value.Just where
   injective Refl = Refl
 
 public export
-Injective Spec.Value.RawI where
+Injective Value.RawI where
   injective Refl = Refl
 
 public export
-Injective Spec.Value.RawB where
+Injective Value.RawB where
   injective Refl = Refl
 
 public export
-{vTy : _} -> Injective (Spec.Value.Det {vTy}) where
+{vTy : _} -> Injective (Value.Det {vTy}) where
   injective Refl = Refl
 
 public export
-{vTy : _} -> Injective (Spec.Value.Undet vTy) where
+{vTy : _} -> Injective (Value.Undet vTy) where
   injective Refl = Refl
 
 public export
@@ -31,7 +31,7 @@ public export
   injective Refl = Refl
 
 public export
-{v : _} -> Injective (Spec.Value.(::) v) where
+{v : _} -> Injective (Value.(::) v) where
   injective Refl = Refl
 
 
