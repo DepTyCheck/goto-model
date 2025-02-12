@@ -59,10 +59,6 @@ record Value where
 %name Value v
 
 public export
-data HasType : Value -> VType -> Type where
-  ItHasType : HasType (V (Just vTy) _ _) vTy
-
-public export
 data Produce : (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> Value -> Type where
   [search vop lv rv]
   -- TODO: ProduceDet
