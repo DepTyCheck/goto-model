@@ -15,7 +15,7 @@ import System.Random.Pure.StdGen
 
 import Test.DepTyCheck.Gen
 import Show.Program
-import Gens.Auto.Derivation.Program
+import Gens.Auto.Derivation
 
 
 %ambiguity_depth 1003
@@ -23,6 +23,7 @@ import Gens.Auto.Derivation.Program
 getNat : HasIO io => io Nat
 getNat = stringToNatOrZ <$> getLine
 
+{-
 covering
 run : HasIO io => MonadError String io => io ()
 run = do
@@ -48,8 +49,9 @@ run = do
            putStrLn test
          Nothing => do
            putStrLn "Failed"
+	   -}
 
 
 covering
 main : IO ()
-main = {-putStr (show test2) -} runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure
+main = putStr (show test2) --runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure
