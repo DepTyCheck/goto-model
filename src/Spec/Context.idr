@@ -7,6 +7,7 @@ import public Spec.Value
 
 
 namespace Source
+  -- Source is a context at the moment of a jump
   public export
   data Source : Nat -> Type where
     Src : Nat -> VectValue n -> Source n
@@ -14,7 +15,7 @@ namespace Source
   public export
   data ListSource : Nat -> Type where
     Nil : ListSource n
-    (::) : Source n{-context at the moment of the jump-} -> ListSource n -> ListSource n
+    (::) : Source n -> ListSource n -> ListSource n
 
   public export
   data Concat : (leftSs : ListSource n) -> (rightSs : ListSource n) -> ListSource n -> Type where
