@@ -20,5 +20,5 @@ genProgram : Fuel ->
              (Fuel -> (a : _) -> Gen MaybeEmpty $ (b ** VExpr a b)) =>
              (Fuel -> Gen MaybeEmpty $ (a ** b ** VExpr a b)) =>
              (Fuel -> Gen MaybeEmpty Value) =>
-             {n : _} -> (ctx : Context n) -> Gen MaybeEmpty (Program ctx)
+             {n : Nat} -> (ctx : Context n) -> Gen MaybeEmpty (Program ctx)
 

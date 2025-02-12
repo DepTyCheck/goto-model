@@ -162,15 +162,15 @@ data Program : (ctx : Context n) -> Type where
   -- Control Flow
   Sink : {1 ctx, contCtx : _} -> contCtx `IsSankIn` ctx => Program contCtx -> Program ctx
 
-  Source0 : Program (Ctx [] uc regs False fs) ->
-            Program (Ctx [] uc regs True fs)
+  Source0 : Program {n} (Ctx [] uc regs False fs) ->
+            Program {n} $ Ctx [] uc regs True fs
   Source1 : Edge (Ctx ols uc regs True fs) (Ctx contOls contUc contRegs False contFs) =>
             Program (Ctx contOls contUc contRegs False contFs) ->
-            Program (Ctx ols uc regs True fs)
+            Program $ Ctx ols uc regs True fs
   Source2 : Edge (Ctx ols uc regs True fs) (Ctx contOls' contUc' contRegs' False contFs') =>
             ForwardEdge (Ctx contOls' contUc' contRegs' False contFs') (Ctx contOls contUc contRegs False contFs) =>
             Program (Ctx contOls contUc contRegs False contFs) ->
-            Program (Ctx ols uc regs True fs)
+            Program $ Ctx ols uc regs True fs
 
   Finish : Finished ctx => Program ctx
 
