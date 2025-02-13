@@ -83,10 +83,10 @@ data SelfDepends : (initExpr : VExpr mVTy initIsDet) -> (vExpr : VExpr mVTy isDe
   SelfDependsDet : SelfDepends _ (Det _) True
   SelfDependsUndet : SelfDepends (Undet vTy i) (Undet vTy i) True
   SelfDependsFalse : NotSame i j => SelfDepends (Undet vTy i) (Undet vTy j) False
-  SelfDependsStep : SelfDepends initExpr vExprL sdL =>
-                    SelfDepends initExpr vExprR sdR =>
+  SelfDependsStep : SelfDepends {mVTy=Just vTy} {initIsDet} initExpr vExprL sdL =>
+                    SelfDepends {mVTy=Just vTy} {initIsDet} initExpr vExprR sdR =>
                     BoolAnd sdL sdR sd =>
-                    SelfDepends initExpr (Op _ vExprL vExprR @{ovtPrf} @{andPrf}) sd
+                    SelfDepends {mVTy=Just vTy} {initIsDet} initExpr (Op _ vExprL vExprR @{ovtPrf} @{andPrf}) sd
 
 public export
 data ExprUnwinding : (uc' : Nat) -> (savedExpr : VExpr mVTy savedIsDet) ->
@@ -102,12 +102,17 @@ data Squash : (uc' : Nat) -> (savedExpr : VExpr (Just vTy) savedIsDet) ->
               (initExpr : VExpr (Just vTy) initIsDet) -> (finalExpr : VExpr (Just vTy) isDet) ->
               Nat -> VExpr (Just vTy) isDet -> Type where
   [search uc' savedExpr initExpr finalExpr]
-  SquashSelfRec : SelfDepends initExpr finalExpr True =>
-                  ExprUnwinding uc' savedExpr initExpr finalExpr uc vExpr =>
-                  Squash uc' savedExpr initExpr finalExpr uc vExpr
+  SquashSelfRec : SelfDepends {mVTy=Just vTy} {initIsDet} {isDet}
+                              initExpr finalExpr True =>
+                  ExprUnwinding {mVTy=Just vTy} {savedIsDet} {initIsDet} {isDet}
+                                uc' savedExpr initExpr finalExpr uc vExpr =>
+                  Squash {vTy} {savedIsDet} {initIsDet} {isDet}
+                         uc' savedExpr initExpr finalExpr uc vExpr
   -- If it is not self-recursive, then it must be not a constant
-  SquashNotSelfRec : SelfDepends initExpr finalExpr False =>
-                     Squash uc' savedExpr initExpr finalExpr (S uc') (Undet ? uc')
+  SquashNotSelfRec : SelfDepends {mVTy=Just vTy} {initIsDet}
+                                 initExpr finalExpr False =>
+                     Squash {vTy} {initIsDet}
+                            uc' savedExpr initExpr finalExpr (S uc') (Undet ? uc')
 
 public export
 data ResetIndex : {isDet : _} -> {mVTy : _} ->
@@ -123,11 +128,13 @@ data ValueUnwinding : (uc' : Nat) -> (savedV : Value) -> (g : Guarantee) ->
                       {-the result uc-}Nat -> {-the result-}Value -> Type where
   [search uc' savedV g initV finalV]
   FinalValueIsPreserved : ValueUnwinding uc savedV SavesValue initV initV uc savedV
-  FinalTypeIsPreserved : Squash uc' savedExpr initExpr finalExpr uc vExpr =>
+  FinalTypeIsPreserved : Squash {vTy} {savedIsDet} {initIsDet} {isDet}
+                                uc' savedExpr initExpr finalExpr uc vExpr =>
                          ValueUnwinding uc' (V (Just vTy) savedIsDet savedExpr) SavesType
                                         (V (Just vTy) initIsDet initExpr) (V (Just vTy) isDet finalExpr)
                                         uc $ V (Just vTy) isDet vExpr
-  FinalIsIntroduced : ResetIndex uc' vExpr' uc vExpr =>
+  FinalIsIntroduced : ResetIndex {isDet} {mVTy=Just vTy}
+                                 uc' vExpr' uc vExpr =>
                       ValueUnwinding uc' _ SavesNothing _ (V (Just vTy) isDet vExpr') uc $ V (Just vTy) isDet vExpr
   FinalIsUnknown : ValueUnwinding uc savedV SavesNothing (V _ _ _) (V Nothing _ _) uc $ V Nothing False Unkwn
 
@@ -151,7 +158,7 @@ data IsStrictlyMonotoneVExpr : VExpr (Just I) isDet -> VExpr (Just I) isDet -> T
 
 public export
 data HasStrictlyMonotoneValue : VectValue n -> VectValue n -> Type where
-  StrictlyMonotoneValueHere : IsStrictlyMonotoneVExpr initExpr finalExpr =>
+  StrictlyMonotoneValueHere : IsStrictlyMonotoneVExpr {isDet} initExpr finalExpr =>
                               HasStrictlyMonotoneValue ((V (Just I) isDet initExpr) :: initRegs')
                                                        ((V (Just I) isDet finalExpr) :: finalRegs')
   StrictlyMonotoneValueThere : HasStrictlyMonotoneValue {n} initRegs' finalRegs' =>
