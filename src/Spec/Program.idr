@@ -54,26 +54,26 @@ data IsSankIn : {-post-}Context n -> (ctx : Context n) -> Type where
   [search ctx]
   -- TODO: potentially, we can allow to enter a context with loops from the outside
   ItIsSankInViaFree : Pick fs contUc contRegs contFs =>
-                      Ctx [] contUc contRegs True contFs `IsSankIn` Ctx [] uc regs False fs
+                      Ctx {n} [] contUc contRegs True contFs `IsSankIn` Ctx {n} [] uc regs False fs
   ItIsSankInViaLocked : Pick ls contUc contRegs contLs =>
-                        Ctx ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs
-                        `IsSankIn` Ctx ((L savedCtx initCtx g ls) :: ols') uc regs False fs
-  ItIsSankInWithLoop : Ctx contOls' contUc' contRegs' True contFs'
-                       `IsSankIn` Ctx ols uc regs False fs =>
+                        Ctx {n} ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs
+                        `IsSankIn` Ctx {n} ((L savedCtx initCtx g ls) :: ols') uc regs False fs
+  ItIsSankInWithLoop : Ctx {n} contOls' contUc' contRegs' True contFs'
+                       `IsSankIn` Ctx {n} ols uc regs False fs =>
                        -- context to-loop update happens here
                        ContWinding contRegs' gs contUc contRegs =>
-                       Ctx ((L (SCtx contUc' contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs'
-                       `IsSankIn` Ctx ols uc regs False fs
+                       Ctx {n} ((L (SCtx contUc' contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs'
+                       `IsSankIn` Ctx {n} ols uc regs False fs
 
 public export
 data ForwardEdge : (ctx : Context n) -> {-post-}Context n -> Type where
   [search ctx]
   -- When a forward edge is attached in a not linear context,
   -- the edge relates to the last completed linear block
-  Free : ForwardEdge (Ctx [] uc regs _ fs) $
-                     Ctx [] uc regs False ((Src uc regs) :: fs)
-  Locked : ForwardEdge (Ctx ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $
-                       Ctx ((L savedCtx initCtx g $ (Src uc regs) :: ls) :: ols') uc regs False fs
+  Free : ForwardEdge (Ctx {n} [] uc regs _ fs) $
+                     Ctx {n} [] uc regs False ((Src uc regs) :: fs)
+  Locked : ForwardEdge (Ctx {n} ((L savedCtx initCtx g ls) :: ols') uc regs _ fs) $
+                       Ctx {n} ((L savedCtx initCtx g $ (Src uc regs) :: ls) :: ols') uc regs False fs
 
 
 public export
@@ -138,9 +138,9 @@ data ContUnwinding : (savedCtx : SavedContext n) ->
   [search savedCtx initRegs gs uc finalRegs]
   -- 2 major steps: summarize the iteration and make the new context
   ContUnwindingBase : ContUnwinding (SCtx savedUc []) [] [] uc [] savedUc []
-  ContUnwindingStep : ContUnwinding (SCtx savedUc savedRegs') initRegs' gs' uc finalRegs' contUc' contRegs' =>
+  ContUnwindingStep : ContUnwinding (SCtx {n} savedUc savedRegs') initRegs' gs' uc finalRegs' contUc' contRegs' =>
                       ValueUnwinding contUc' savedV g initV finalV contUc contV =>
-                      ContUnwinding (SCtx savedUc $ savedV :: savedRegs') (initV :: initRegs')
+                      ContUnwinding (SCtx {n=S n} savedUc $ savedV :: savedRegs') (initV :: initRegs')
                                     (g :: gs') uc (finalV :: finalRegs')
                                     contUc (contV :: contRegs')
 
@@ -163,8 +163,8 @@ data Edge : (ctx : Context n) -> {-post-}Context n -> Type where
   Backward : HasStrictlyMonotoneValue initCtx regs =>
              ContUnwinding savedCtx initCtx gs uc regs contUc contRegs => -- context from-loop update happens here
              Concat ls fs contFs =>
-             Edge (Ctx ((L savedCtx initCtx gs ls) :: ols') uc regs True fs)
-                  (Ctx ols' contUc contRegs False contFs)
+             Edge (Ctx {n} ((L savedCtx initCtx gs ls) :: ols') uc regs True fs)
+                  (Ctx {n} ols' contUc contRegs False contFs)
   Forward : ForwardEdge ctx contCtx -> Edge ctx contCtx
 
 public export
