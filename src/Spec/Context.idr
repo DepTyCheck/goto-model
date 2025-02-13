@@ -21,7 +21,7 @@ namespace Source
   data Concat : (leftSs : ListSource n) -> (rightSs : ListSource n) -> ListSource n -> Type where
     [search leftSs rightSs]
     ConcatBase : Concat [] ss ss
-    ConcatStep : Concat ss1' ss2 ss -> Concat (s :: ss1') ss2 (s :: ss)
+    ConcatStep : Concat {n} ss1' ss2 ss -> Concat {n} (s :: ss1') ss2 (s :: ss)
 
   public export
   data Length : (ss : ListSource n) -> Nat -> Type where
