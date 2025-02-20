@@ -77,6 +77,7 @@ data ForwardEdge : (ctx : Context n) -> {-post-}Context n -> Type where
                        Ctx {n} ((L savedCtx initCtx g $ (Src uc regs) :: ls) :: ols') uc regs False fs
 
 
+-- TODO: maybe not the same mVTy?
 public export
 data SelfDepends : (initExpr : VExpr mVTy initIsDet) -> (vExpr : VExpr mVTy isDet) ->
                    Bool -> Type where
@@ -91,7 +92,7 @@ data SelfDepends : (initExpr : VExpr mVTy initIsDet) -> (vExpr : VExpr mVTy isDe
 
 public export
 data ExprUnwinding : (uc' : Nat) -> (savedExpr : VExpr mVTy savedIsDet) ->
-                     (initExpr : VExpr mVTy initIsDet) -> (finalExpr : VExpr mVTy isDet) ->
+                     (initExpr : VExpr mVTy initIsDet) -> (finalExpr : VExpr mVTy finalIsDet) ->
                      Nat -> VExpr mVTy isDet -> Type where
   [search uc' savedExpr initExpr finalExpr]
   ExprUnwindingDet : ExprUnwinding {isDet=True} uc savedExpr initExpr finalExpr uc finalExpr
@@ -100,17 +101,17 @@ data ExprUnwinding : (uc' : Nat) -> (savedExpr : VExpr mVTy savedIsDet) ->
 
 public export
 data Squash : (uc' : Nat) -> (savedExpr : VExpr (Just vTy) savedIsDet) ->
-              (initExpr : VExpr (Just vTy) initIsDet) -> (finalExpr : VExpr (Just vTy) isDet) ->
+              (initExpr : VExpr (Just vTy) initIsDet) -> (finalExpr : VExpr (Just vTy) finalIsDet) ->
               Nat -> VExpr (Just vTy) isDet -> Type where
   [search uc' savedExpr initExpr finalExpr]
-  SquashSelfRec : SelfDepends {mVTy=Just vTy} {initIsDet} {isDet}
+  SquashSelfRec : SelfDepends {mVTy=Just vTy} {initIsDet} {isDet=finalIsDet}
                               initExpr finalExpr True =>
-                  ExprUnwinding {mVTy=Just vTy} {savedIsDet} {initIsDet} {isDet}
+                  ExprUnwinding {mVTy=Just vTy} {savedIsDet} {initIsDet} {finalIsDet} {isDet}
                                 uc' savedExpr initExpr finalExpr uc vExpr =>
                   Squash {vTy} {savedIsDet} {initIsDet} {isDet}
                          uc' savedExpr initExpr finalExpr uc vExpr
   -- If it is not self-recursive, then it must be not a constant
-  SquashNotSelfRec : SelfDepends {mVTy=Just vTy} {initIsDet}
+  SquashNotSelfRec : SelfDepends {mVTy=Just vTy} {initIsDet} {isDet=finalIsDet}
                                  initExpr finalExpr False =>
                      Squash {vTy} {initIsDet}
                             uc' savedExpr initExpr finalExpr (S uc') (Undet ? uc')
