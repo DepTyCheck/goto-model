@@ -59,11 +59,11 @@ data IsSankIn : {-post-}Context n -> (ctx : Context n) -> Type where
   ItIsSankInViaLocked : Pick {n} ls contUc contRegs contLs =>
                         Ctx {n} ((L savedCtx initCtx g contLs) :: ols') contUc contRegs True fs
                         `IsSankIn` Ctx {n} ((L savedCtx initCtx g ls) :: ols') uc regs False fs
-  ItIsSankInWithLoop : Ctx {n} contOls' contUc' contRegs' True contFs'
-                       `IsSankIn` Ctx {n} ols uc regs False fs =>
+  ItIsSankInWithLoop : Ctx {n} [] contUc' contRegs' True contFs'  -- TODO: better loop depth handling
+                       `IsSankIn` Ctx {n} [] uc regs False fs =>
                        -- context to-loop update happens here
                        ContWinding {n} contRegs' gs contUc contRegs =>
-                       Ctx {n} ((L (SCtx contUc' contRegs') contRegs gs []) :: contOls') contUc contRegs True contFs'
+                       Ctx {n} ((L (SCtx contUc' contRegs') contRegs gs []) :: []) contUc contRegs True contFs'
                        `IsSankIn` Ctx {n} ols uc regs False fs
 
 public export
