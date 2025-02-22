@@ -80,6 +80,17 @@ data Index : (i : Fin n) -> (vs : VectValue n) -> Value -> Type where
   IndexStep : Index i' vs v -> Index (FS i') (v' :: vs) v
 
 public export
+data ReplaceAt : (i : Fin n) -> (v : Value) -> (vs : VectValue n) -> VectValue n -> Type where
+  [search i v vs]
+  ReplaceHere : ReplaceAt FZ v (v' :: vs') (v :: vs')
+  ReplaceThere : ReplaceAt i' v vs' newVs' => ReplaceAt (FS i') v (v1 :: vs') (v1 :: newVs')
+
+public export
+data Duplicate : (dst : Fin n) -> (src : Fin n) -> (vs : VectValue n) -> VectValue n -> Type where
+  [search dst src vs]
+  JustDup : Index src vs v => ReplaceAt dst v vs newVs => Duplicate dst src vs newVs
+
+public export
 index : Fin n -> VectValue n -> Value
 index FZ (v :: vs) = v
 

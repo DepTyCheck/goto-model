@@ -180,12 +180,14 @@ public export
 data Program : (ctx : Context n) -> Type where
   -- Linear Block
   Assign : (target : Fin n) -> (i : Fin n) ->
-           Program {n} (Ctx ols uc (duplicate target i regs) True fs) ->
+           Duplicate target i regs contRegs =>
+           Program {n} (Ctx ols uc contRegs True fs) ->
            Program {n} $ Ctx ols uc regs True fs
   RegOp : (vop : ValueOp) -> (target : Fin n) -> (li : Fin n) -> (ri : Fin n) ->
           Index li regs lv => Index ri regs rv =>
           Produce vop lv rv contV =>
-          Program {n} (Ctx ols uc (replaceAt target contV regs) True fs) ->
+          ReplaceAt target contV regs contRegs =>
+          Program {n} (Ctx ols uc contRegs True fs) ->
           Program {n} $ Ctx ols uc regs True fs
 
   -- Control Flow
@@ -208,14 +210,19 @@ data Program : (ctx : Context n) -> Type where
 
 %name Program prog
 
+test0' : Index {n=2} (FS FZ) [V _ _ (Det $ RawI 1), V _ _ (Det $ RawB True)] ? -- (V _ _ $ Det $ RawB True)
+test0' = %search
+
+test0'' : ReplaceAt {n=2} FZ (V _ _ $ Det $ RawB True) [V _ _ (Det $ RawI 1), V _ _ (Det $ RawB True)] ?
+test0'' = %search
 
 test0 : Program {n=2} $ Ctx [] Z [V _ _ (Det $ RawI 1), V _ _ (Det $ RawB True)] True []
-test0 = Assign 0 1 $
+test0 = Assign 0 1 @{JustDup @{%search} @{%search}} $
         Source0 $
         Finish
 
 test1 : Program {n=2} $ Ctx [] 1 [V _ _ (Undet _ 0), V _ _ (Det $ RawB True)] True []
-test1 = Assign 0 1 $
+test1 = Assign 0 1 @{JustDup @{%search} @{%search}} $  -- TODO: without it, the compiler inferences wrong Values
         Source0 $
         Finish
 
