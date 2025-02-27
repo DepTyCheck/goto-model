@@ -23,7 +23,33 @@ import Gens.Auto.Derivation
 getNat : HasIO io => io Nat
 getNat = stringToNatOrZ <$> getLine
 
-{-
+genVExpr01' : Fuel -> (a : _) -> (b : _) -> Gen MaybeEmpty $ VExpr a b
+genVExpr01' f a b = genVExpr01 f @{genBoolAnd2} @{genRawValue0} a b
+
+genVExpr0' : Fuel -> (a : _) -> Gen MaybeEmpty (b ** VExpr a b)
+genVExpr0' f a = genVExpr0 f @{genVExpr01'} @{genBoolAnd0} @{genRawValue0} a
+
+genVExpr' : Fuel -> Gen MaybeEmpty (a ** b ** VExpr a b)
+genVExpr' f = genVExpr f @{genVExpr01'} @{genVExpr0'} @{genBoolAnd0} @{genRawValue0}
+
+genRawValue' : Fuel -> Gen MaybeEmpty (a ** RawValue a)
+genRawValue' f = genRawValue f @{genRawValue0}
+
+genValue' : Fuel -> Gen MaybeEmpty Value
+genValue' f = genValue f @{genVExpr'}
+
+genProgram' : Fuel -> {n : _} -> (ctx : Context n) -> Gen MaybeEmpty $ Program ctx
+genProgram' f ctx = genProgram f @{genBoolAnd012} @{genBoolAnd0} @{genBoolAnd1} @{genBoolAnd2} @{genNotSame01}
+                                 @{genRawValue0}
+                                 @{genRawValue'}
+                                 @{genVExpr01'}
+                                 @{genVExpr0'}
+                                 @{genVExpr'}
+                                 @{genValue'} ctx
+
+fromVE : {mVTy : _} -> {isDet : _} -> VExpr mVTy isDet -> Value
+fromVE {mVTy} {isDet} vExpr = V mVTy isDet vExpr
+
 covering
 run : HasIO io => MonadError String io => io ()
 run = do
@@ -35,7 +61,7 @@ run = do
 
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..10]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGen' $ genProgram (limit f) (Ctx {n=3} [] 2 [V _ _ (Undet I 0), V _ _ (Undet I 1), V _ _ (Det $ RawI 1)] True []) {->>=-} <&> show
+    test' <- unGen' $ {-genPick {n=2} (limit f) [Src 0 [fromVE (Det $ RawB True), fromVE (Det $ RawI 10)], Src 1 [fromVE (Undet I 0), fromVE (Undet B 1)], Src 1 [fromVE (Undet I 0), fromVE Unkwn]] -}  genProgram' (limit f) (Ctx {n=3} [] 2 [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)] True []) {->>=-} <&> show
     finishMoment <- lift $ liftIO $ clockTime clock
 
     let diff = timeDifference finishMoment startMoment
@@ -46,12 +72,11 @@ run = do
     case test' of
          (Just test) => do
            putStrLn "Successful"
-           putStrLn test
+           putStrLn $ test
          Nothing => do
            putStrLn "Failed"
-	   -}
 
 
 covering
 main : IO ()
-main = putStr (show test2) --runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure
+main = {-putStr (show test2) -} runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure
