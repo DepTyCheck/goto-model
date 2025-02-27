@@ -48,7 +48,7 @@ genProgram' f ctx = genProgram f @{genBoolAnd012} @{genBoolAnd0} @{genBoolAnd1} 
                                  @{genValue'} ctx
 
 fromVE : {mVTy : _} -> {isDet : _} -> VExpr mVTy isDet -> Value
-fromVE {mVTy} {isDet} vExpr = V mVTy isDet vExpr
+fromVE vExpr = JustV $ vExpr
 
 covering
 run : HasIO io => MonadError String io => io ()

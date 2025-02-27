@@ -22,6 +22,12 @@ namespace Logic
     FalseAndAny : BoolAnd False _ False
     AnyAndFalse : BoolAnd _ False False
 
+  public export
+  boolAnd : (a : Bool) -> (b : Bool) -> (c ** BoolAnd a b c)
+  boolAnd False b = (False ** FalseAndAny)
+  boolAnd True False = (False ** AnyAndFalse)
+  boolAnd True True = (True ** TrueAndTrue)
+
 namespace Nat
   public export
   data NatSum : Nat -> Nat -> Nat -> Type where

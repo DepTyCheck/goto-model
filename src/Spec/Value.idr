@@ -36,35 +36,23 @@ data RawValue : VType -> Type where
 %name RawValue rawV
 
 public export
-data VExpr : MaybeVType -> Bool -> Type where
-  Unkwn : VExpr Nothing False
-  Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr (Just vTy) True
-  Undet : (vTy : _) -> (idx : Nat) -> VExpr (Just vTy) False
+data VExpr : VType -> Bool -> Type where
+  Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr vTy True
+  Undet : (vTy : _) -> (idx : Nat) -> VExpr vTy False
   Op : (vop : ValueOp) ->
        {vTyL, vTyR : _} -> {isDetL, isDetR : _} ->
-       VExpr (Just vTyL) isDetL -> VExpr (Just vTyR) isDetR ->
+       VExpr vTyL isDetL -> VExpr vTyR isDetR ->
        IsOpVTypes vop vTyL vTyR vTy => BoolAnd isDetL isDetR isDet =>
-       VExpr (Just vTy) isDet
+       VExpr vTy isDet
 
 %name VExpr vExpr
 
 public export
-record Value where
-  constructor V
-
-  mtype : MaybeVType
-  isDetermined : Bool
-  raw : VExpr mtype isDetermined
+data Value : Type where
+  Unkwn : Value
+  JustV : {vTy : _} -> {isDet : _} -> VExpr vTy isDet -> Value
 
 %name Value v
-
-public export
-data Produce : (vop : ValueOp) -> (lv : Value) -> (rv : Value) -> Value -> Type where
-  [search vop lv rv]
-  -- TODO: ProduceDet
-  ProduceOp : IsOpVTypes vop vTyL vTyR vTy =>
-              BoolAnd isDetL isDetR isDet =>
-              Produce vop (V (Just vTyL) isDetL vExprL) (V (Just vTyR) isDetR vExprR) $ V (Just vTy) isDet (Op vop vExprL vExprR)
 
 public export
 data VectValue : Nat -> Type where
@@ -80,6 +68,12 @@ data Index : (i : Fin n) -> (vs : VectValue n) -> Value -> Type where
   IndexStep : Index i' vs v -> Index (FS i') (v' :: vs) v
 
 public export
+data HasType : (vTy : VType) -> (vs : VectValue n) -> VExpr vTy isDet -> Type where
+  [search vTy vs]
+  HasTypeHere : HasType vTy (JustV {vTy} vExpr :: vs') vExpr
+  HasTypeThere : HasType vTy vs' v -> HasType vTy (v1 :: vs') v
+
+public export
 data ReplaceAt : (i : Fin n) -> (v : Value) -> (vs : VectValue n) -> VectValue n -> Type where
   [search i v vs]
   ReplaceHere : ReplaceAt FZ v (v' :: vs') (v :: vs')
@@ -91,9 +85,15 @@ data Duplicate : (dst : Fin n) -> (src : Fin n) -> (vs : VectValue n) -> VectVal
   JustDup : Index src vs v => ReplaceAt dst v vs newVs => Duplicate dst src vs newVs
 
 public export
+data Produce : ValueOp -> VectValue n -> Value -> Type where
+  ProduceOp : HasType vTyL regs {isDet=isDetL} vExprL =>
+              (ovtPrf : IsOpVTypes vop vTyL vTyR vTy) =>
+              HasType vTyR regs {isDet=isDetR} vExprR =>
+              Produce vop regs (JustV $ Op vop vExprL vExprR @{ovtPrf} @{snd $ boolAnd isDetL isDetR})
+
+public export
 index : Fin n -> VectValue n -> Value
 index FZ (v :: vs) = v
-
 index (FS i') (v :: vs) = index i' vs
 
 public export

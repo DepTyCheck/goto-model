@@ -27,7 +27,7 @@ public export
   injective Refl = Refl
 
 public export
-{mVTy : _} -> {isDet : _} -> Injective (V mVTy isDet) where
+{vTy : _} -> {isDet : _} -> Injective (Value.JustV {vTy} {isDet}) where
   injective Refl = Refl
 
 public export
@@ -84,7 +84,6 @@ DecEq (IsOpVTypes {}) where
 
 public export
 DecEq (VExpr {}) where
-  decEq Unkwn Unkwn = Yes Refl
   decEq (Det rawV) (Det rawV') = decEqCong $ decEq rawV rawV'
   decEq (Undet vTy idx) (Undet vTy idx') = decEqCong $ decEq idx idx'
   decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
@@ -133,10 +132,13 @@ DecEq (VExpr {}) where
 
 public export
 DecEq Value where
-  decEq (V mVTy isDet vExpr) (V mVTy' isDet' vExpr') with (decEq mVTy mVTy', decEq isDet isDet')
-    decEq (V mVTy isDet vExpr) (V mVTy isDet vExpr') | (Yes Refl, Yes Refl) = decEqCong $ decEq vExpr vExpr'
-    decEq (V mVTy isDet vExpr) (V mVTy isDet' vExpr') | (Yes Refl, No contra) = No $ \case Refl => contra Refl
-    decEq (V mVTy isDet vExpr) (V mVTy' isDet' vExpr') | (No contra, _) = No $ \case Refl => contra Refl
+  decEq Unkwn Unkwn = Yes Refl
+  decEq (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) with (decEq vTy1 vTy2, decEq isDet1 isDet2)
+    decEq (JustV {vTy} {isDet} vExpr1) (JustV {vTy} {isDet} vExpr2) | (Yes Refl, Yes Refl) = decEqCong $ decEq vExpr1 vExpr2
+    decEq (JustV {vTy} {isDet=isDet1} vExpr1) (JustV {vTy} {isDet=isDet2} vExpr2) | (Yes Refl, No contra) = No $ \case Refl => contra Refl
+    decEq (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) | (No contra, _) = No $ \case Refl => contra Refl
+  decEq Unkwn (JustV vExpr) = No $ \case Refl impossible
+  decEq (JustV vExpr) Unkwn = No $ \case Refl impossible
 
 public export
 DecEq (VectValue {}) where

@@ -17,7 +17,6 @@ Show ValueOp where
 
 public export
 Show (VExpr mVTy isDet) where
-  show Unkwn = "Unkwn"
   show (Det (RawI i)) = "I \{show i}"
   show (Det (RawB b)) = "B \{show b}"
   show (Undet vTy idx) = "Undet(\{show vTy}, \{show idx})"
@@ -25,7 +24,8 @@ Show (VExpr mVTy isDet) where
 
 public export
 Show Value where
-  show (V mtype isDetermined raw) = show raw
+  show Unkwn = "Unkwn"
+  show (JustV vExpr) = show vExpr
 
 public export
 Show (VectValue n) where
@@ -50,9 +50,17 @@ Show (ListSource n) where
       show' (s1 :: s2 :: ss'') = "\{show s1}, " <+> show' (s2 :: ss'')
 
 public export
+toIndex : HasType vTy vs vExpr -> Nat
+toIndex HasTypeHere = Z
+toIndex (HasTypeThere hasTy') = S $ toIndex hasTy'
+
+public export
 Show (Program {n=S n'} ctx) where
   show (Assign target i cont) = unlines ["Assign \{show target} <- \{show i}", show cont]
-  show (RegOp vop target li ri cont) = unlines ["\{show vop} \{show target} <- \{show li} \{show ri}", show cont]
+  show (RegOp vop target @{ProduceOp @{hasTyL} @{_} @{hasTyR}} cont) = do
+    let li = toIndex hasTyL
+    let ri = toIndex hasTyR
+    unlines ["\{show vop} \{show target} <- \{show li} \{show ri}", show cont]
   show (Sink {ctx = Ctx [] uc regs isInLB fs} {contCtx = Ctx _ _ _ _ contFs} cont) = do
     unlines ["fs before sink: \{show fs}", "fs after sink: \{show contFs}", show cont]
   show (Sink {ctx = Ctx ((L savedCtx initRegs gs ls) :: ols') uc regs isInLB fs} {contCtx = Ctx _ _ _ _ contFs} cont) = do
