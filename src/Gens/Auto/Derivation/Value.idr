@@ -4,6 +4,8 @@ import public Gens.Auto.Derivation.Common
 import public Gens.Auto.Interface.Value
 
 
+%logging "deptycheck.derive" 5
+
 Gens.Auto.Interface.Value.genRawValue0 = deriveGen
 Gens.Auto.Interface.Value.genRawValue = deriveGen
 Gens.Auto.Interface.Value.genVExpr01 = deriveGen
