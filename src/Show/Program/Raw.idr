@@ -21,7 +21,7 @@ Show (VExpr mVTy isDet) where
   show (Det (RawI i)) = "I \{show i}"
   show (Det (RawB b)) = "B \{show b}"
   show (Undet vTy idx) = "Undet(\{show vTy}, \{show idx})"
-  show (Op vop vExprL vExprR) = "(\{show vExprL} \show{vop} \{show vExprR})"
+  show (Op vop vExprL vExprR) = "(\{show vExprL} \{show vop} \{show vExprR})"
 
 public export
 Show Value where
