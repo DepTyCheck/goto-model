@@ -59,7 +59,7 @@ run = do
   let randomGen = mkStdGen seed
   let clock : ?; clock = Monotonic
 
-  evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..10]) $ \k => do
+  evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..n]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
     test' <- unGen' $ {-genPick {n=2} (limit f) [Src 0 [fromVE (Det $ RawB True), fromVE (Det $ RawI 10)], Src 1 [fromVE (Undet I 0), fromVE (Undet B 1)], Src 1 [fromVE (Undet I 0), fromVE Unkwn]] -}  genProgram' (limit f) (Ctx {n=3} [] 2 [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)] True []) {->>=-} <&> show
     finishMoment <- lift $ liftIO $ clockTime clock

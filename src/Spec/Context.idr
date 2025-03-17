@@ -71,6 +71,14 @@ namespace Source
     let (recS, recSs) = pick i' ss'
     (recS, s :: recSs)
 
+  public export
+  pick' : (ss : ListSource n) -> (i : Fin $ length ss) -> (Source n, ListSource n)
+  pick' [] i = absurd i
+  pick' (s :: ss') FZ = (s, ss')
+  pick' (s :: ss') (FS i') = do
+    let (recS, recSs) = pick' ss' i'
+    (recS, s :: recSs)
+
 namespace Guarantee
   public export
   data Guarantee = SavesValue | SavesType | SavesNothing
@@ -109,6 +117,11 @@ namespace Loop
   data ListLoop : (n : Nat) -> Type where
     Nil : ListLoop n
     (::) : Loop n -> ListLoop n -> ListLoop n
+
+  public export
+  length : ListLoop n -> Nat
+  length [] = 0
+  length (l :: ls') = S $ length ls'
 
 public export
 record Context (n : Nat) where

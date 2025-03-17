@@ -7,10 +7,6 @@ import public Spec.Value
 
 
 public export
-Injective Value.Just where
-  injective Refl = Refl
-
-public export
 Injective Value.RawI where
   injective Refl = Refl
 
@@ -34,7 +30,6 @@ public export
 {v : _} -> Injective (Value.(::) v) where
   injective Refl = Refl
 
-
 public export
 DecEq (BoolAnd a b c) where
   decEq TrueAndTrue TrueAndTrue = Yes Refl
@@ -49,13 +44,6 @@ DecEq VType where
   decEq B I = No $ \case Refl impossible
   decEq I I = Yes Refl
   decEq I B = No $ \case Refl impossible
-
-public export
-DecEq MaybeVType where
-  decEq Nothing Nothing = Yes Refl
-  decEq (Just a) (Just b) = decEqCong $ decEq a b
-  decEq Nothing (Just b) = No $ \case Refl impossible
-  decEq (Just a) Nothing = No $ \case Refl impossible
 
 public export
 DecEq ValueOp where
@@ -81,6 +69,11 @@ DecEq (IsOpVTypes {}) where
   decEq ItIsOrVTypes ItIsOrVTypes = Yes Refl
 
 %ambiguity_depth 5
+
+public export
+Eq (RawValue vTy) where
+  (RawI x) == (RawI y) = x == y
+  (RawB x) == (RawB y) = x == y
 
 public export
 DecEq (VExpr {}) where

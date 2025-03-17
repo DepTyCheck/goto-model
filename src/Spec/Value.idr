@@ -10,11 +10,6 @@ data VType = I | B
 %name VType vTy
 
 public export
-data MaybeVType = Nothing | Just VType
-
-%name MaybeVType mVTy
-
-public export
 data ValueOp = Add | And | Or
 
 %name ValueOp vop

@@ -17,6 +17,12 @@ GenOrderTuning "Assign".dataCon where
   deriveFirst _ _ = [8]
 -}
 
+{-
+GenOrderTuning "ItIsSankInWithLoop".dataCon where
+  isConstructor = itIsConstructor
+  deriveFirst _ _ = [11]
+  -}
+
 GenOrderTuning "RegOp".dataCon where
   isConstructor = itIsConstructor
   deriveFirst _ _ = []

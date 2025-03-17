@@ -17,9 +17,9 @@ Show ValueOp where
 
 public export
 Show (VExpr mVTy isDet) where
-  show (Det (RawI i)) = "I \{show i}"
-  show (Det (RawB b)) = "B \{show b}"
-  show (Undet vTy idx) = "Undet(\{show vTy}, \{show idx})"
+  show (Det (RawI i)) = "D(I \{show i})"
+  show (Det (RawB b)) = "D(B \{show b})"
+  show (Undet vTy idx) = "U(\{show vTy}, \{show idx})"
   show (Op vop vExprL vExprR) = "(\{show vExprL} \{show vop} \{show vExprR})"
 
 public export
@@ -61,11 +61,12 @@ Show (Program {n=S n'} ctx) where
     let li = toIndex hasTyL
     let ri = toIndex hasTyR
     unlines ["\{show vop} \{show target} <- \{show li} \{show ri}", show cont]
-  show (Sink {ctx = Ctx [] uc regs isInLB fs} {contCtx = Ctx _ _ _ _ contFs} cont) = do
+  show (Sink {ctx = Ctx _ _ _ _ fs} @{ItIsSankInWithLoop _} {contFs} cont) =
+    unlines ["fs before sink: \{show fs}", "fs after sink into loop: \{show contFs}", show cont]
+  show (Sink {ctx = Ctx _ _ _ _ fs} @{_} {contFs} cont) =
     unlines ["fs before sink: \{show fs}", "fs after sink: \{show contFs}", show cont]
-  show (Sink {ctx = Ctx ((L savedCtx initRegs gs ls) :: ols') uc regs isInLB fs} {contCtx = Ctx _ _ _ _ contFs} cont) = do
-    unlines ["fs after sink in loop: \{show contFs}", show cont]
   show (Source0 cont) = unlines ["Source0", show cont]
-  show (Source1 cont) = unlines ["Source1", show cont]
+  show (Source1 @{_} @{Backward} cont) = unlines ["Source1, backward", show cont]
+  show (Source1 @{_} @{Forward _} cont) = unlines ["Source1, forward", show cont]
   show (Source2 cont) = unlines ["Source2", show cont]
   show Finish = ""
