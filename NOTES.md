@@ -151,9 +151,10 @@ Value has
    **Note:** actually, 1 value can be stored as 2 boundaries with the same expression
 
 Minimum amount of types:
- - U[nknown] (it is garbage or Mixed - some paths may provide different types, but for simplicity they are ignored right now)
  - B[oolean] - And and Or operations
  - I[nteger] - Add operation
+
+Unknown - a special Value which value is unknown
 
 #### Model
 
