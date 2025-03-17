@@ -1,16 +1,37 @@
 # goto-model
 
-It is a model of some abstract assembly language. Key feature of the model is work with conditional jumps and three generation steps before getting
-a complete program.
+It is a model of some abstract assembly language. Key feature of the model is work with conditional jumps instead of structured approach.
 
-## Current state
+## Current model
+
+There is a machine that operates using only `n` registers.
+
+Each register contains a typed value. The types can be `I` (Natural numbers) or `B` (Boolean).
+
+Allowed operations:
+ - `I`
+   - `Add r0 r1 r2` - `r0 = r1 + r2`
+ - `B`
+   - `And r0 r1 r2` - `r0 = r1 & r2`
+   - `Or r0 r1 r2` - `r0 = r1 | r2`
 
 The language consists of the following instructions:
- - `exit;` - finishes the program execution
- - `nop;` - empty instruction, just to fill linear blocks a bit
+ - `exit` - finishes the program execution
+ - `<expr>` - expression
  - `label_name:` - puts a label `label_name` into the program
- - `jmp label_name;` - unconditional jump to the label `label_name` instruction
- - `condjmp label_name;` - conditional jump to the label `label_name` instruction. It means that 2 paths are possible: either to just skip this instruction,
- or to follow the jump
+ - `jmp label_name;` - unconditional jump to the label `label_name`
+ - `condjmp label_name <cond>;` - conditional jump to the label `label_name`. Condition may take the following forms (`<const>` - compile-time known constant value):
+   - `r ? <const>` where `?` is one of `<`, `>`, `<=`, `>=`, `==`, `!=`
 
-The model is able to produce any program which CFG is a DAG (Directed Acyclic Graph)
+## Specified model restrictions
+
+ - A program may have unreachable code due to logical implications. High-level example:
+ ```
+ if (x > 10) {
+   if (x < 10) {
+     // unreachable code
+   }
+ }
+ ```
+
+ - A program's CFG can be viewed as a rooted tree with nested loops only
