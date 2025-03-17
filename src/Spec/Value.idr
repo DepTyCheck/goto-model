@@ -82,8 +82,8 @@ data Duplicate : (dst : Fin n) -> (src : Fin n) -> (vs : VectValue n) -> VectVal
 public export
 data Produce : ValueOp -> VectValue n -> Value -> Type where
   ProduceOp : HasType vTyL regs {isDet=isDetL} vExprL =>
-              (ovtPrf : IsOpVTypes vop vTyL vTyR vTy) =>
               HasType vTyR regs {isDet=isDetR} vExprR =>
+              (ovtPrf : IsOpVTypes vop vTyL vTyR vTy) =>
               Produce vop regs (JustV $ Op vop vExprL vExprR @{ovtPrf} @{snd $ boolAnd isDetL isDetR})
 
 public export
