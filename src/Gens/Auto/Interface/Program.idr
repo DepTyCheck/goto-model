@@ -5,6 +5,10 @@ import public Gens.Auto.Interface.Common
 import public Spec.Program
 
 public export
+genProgram : Fuel -> {m : Nat} -> {n : Nat} -> (srcs : VectSource n m) -> Gen MaybeEmpty $ Program srcs
+
+{-
+public export
 genProgram : Fuel ->
              -- Spec.Misc gens
              (Fuel -> Gen MaybeEmpty $ (a ** b ** c ** BoolAnd a b c)) =>

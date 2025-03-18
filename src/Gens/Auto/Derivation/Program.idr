@@ -2,13 +2,17 @@ module Gens.Auto.Derivation.Program
 
 import public Gens.Auto.Derivation.Common
 import public Gens.Auto.Interface.Program
-import Spec.Value.Decidable
-import Spec.Context.Decidable
 
 
 %logging "deptycheck.derive" 20
 
+GenOrderTuning "Step".dataCon where
+  isConstructor = itIsConstructor
+  deriveFirst _ _ = [7, 8]
 
+Gens.Auto.Interface.Program.genProgram = deriveGen
+
+{-
 {-
 -- n fs uc ols contRegs regs target i Duplicate Program
 -- 0  1  2   3        4    5      6 7         8       9

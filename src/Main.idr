@@ -14,14 +14,17 @@ import System.Clock
 import System.Random.Pure.StdGen
 
 import Test.DepTyCheck.Gen
-import Show.Program
-import Gens.Auto.Derivation
+-- import Show.Program
+-- import Gens.Auto.Derivation
+import Gens.Auto.Derivation.Program
 
 
 %ambiguity_depth 1003
 
 getNat : HasIO io => io Nat
 getNat = stringToNatOrZ <$> getLine
+
+{-
 
 genVExpr01' : Fuel -> (a : _) -> (b : _) -> Gen MaybeEmpty $ VExpr a b
 genVExpr01' f a b = genVExpr01 f @{genBoolAnd2} @{genRawValue0} a b
@@ -45,7 +48,7 @@ genProgram' f ctx = genProgram f @{genBoolAnd012} @{genBoolAnd0} @{genBoolAnd1} 
                                  @{genVExpr01'}
                                  @{genVExpr0'}
                                  @{genVExpr'}
-                                 @{genValue'} ctx
+                                 @{genValue'} ctx -}
 
 fromVE : {mVTy : _} -> {isDet : _} -> VExpr mVTy isDet -> Value
 fromVE vExpr = JustV $ vExpr
@@ -61,7 +64,7 @@ run = do
 
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..n]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGen' $ {-genPick {n=2} (limit f) [Src 0 [fromVE (Det $ RawB True), fromVE (Det $ RawI 10)], Src 1 [fromVE (Undet I 0), fromVE (Undet B 1)], Src 1 [fromVE (Undet I 0), fromVE Unkwn]] -}  genProgram' (limit f) (Ctx {n=3} [] 2 [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)] True []) {->>=-} <&> show
+    test' <- unGen' $ genProgram (limit f) (Ctx {n=3} $ Src [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)]) <&> show
     finishMoment <- lift $ liftIO $ clockTime clock
 
     let diff = timeDifference finishMoment startMoment
@@ -72,7 +75,7 @@ run = do
     case test' of
          (Just test) => do
            putStrLn "Successful"
-           putStrLn $ test
+           -- putStrLn $ test
          Nothing => do
            putStrLn "Failed"
 

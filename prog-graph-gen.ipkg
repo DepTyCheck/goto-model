@@ -19,7 +19,7 @@ depends = deptycheck
 -- modules = Gens.Auto.Derivation.Test
 
 -- main file (i.e. file to load at REPL)
-executable = test
+executable = gen
 main = Main
 
 -- opts =
