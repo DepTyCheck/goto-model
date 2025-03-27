@@ -1,10 +1,10 @@
 module Spec.Misc
 
+import public Data.Fin
 
 %default total
 
-
-namespace Logic
+namespace Bool
   public export
   data OnlyOne : Bool -> Bool -> Type where
     OnlyFirst : OnlyOne True False
@@ -28,14 +28,42 @@ namespace Logic
   boolAnd True False = (False ** AnyAndFalse)
   boolAnd True True = (True ** TrueAndTrue)
 
+  public export
+  data VectBool : Nat -> Type where
+    Nil : VectBool 0
+    (::) : Bool -> VectBool n -> VectBool (S n)
+
+  public export
+  length : VectBool n -> Nat
+  length [] = 0
+  length (_ :: vs) = S $ length vs
+
+  public export
+  lengthIsCorrect : (vs : VectBool n) -> n = length vs
+  lengthIsCorrect [] = Refl
+  lengthIsCorrect (_ :: vs) = cong S $ lengthIsCorrect vs
+
+  public export
+  data HasTrue : VectBool n -> Type where
+    Here : HasTrue (True :: bs)
+    There : HasTrue bs -> HasTrue (b :: bs)
+
 namespace Nat
   public export
   data NatSum : Nat -> Nat -> Nat -> Type where
     NatSumBase : NatSum a Z a
-    NatSumStep : NatSum a b c => NatSum a (S b) (S c)
+    NatSumStep : NatSum a b c -> NatSum a (S b) (S c)
 
   public export
   data NotSame : Nat -> Nat -> Type where
     NotSameLeftBase : NotSame Z (S m')
     NotSameRightBase : NotSame (S n') Z
-    NotSameStep : NotSame n m => NotSame (S n) (S m)
+    NotSameStep : NotSame n m -> NotSame (S n) (S m)
+
+namespace Fin
+  public export
+  data NotSame : Fin n -> Fin n -> Type where
+    NotSameLeftBase : NotSame FZ (FS j)
+    NotSameRightBase : NotSame (FS i) FZ
+    NotSameStep : NotSame i j -> NotSame (FS i) (FS j)
+

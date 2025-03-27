@@ -1,10 +1,8 @@
 module Gens.Auto.Interface.Value
 
-
 import public Gens.Auto.Interface.Common
 import public Spec.Misc
 import public Spec.Value
-
 
 public export
 genRawValue0 : Fuel -> (vTy : _) -> Gen MaybeEmpty $ RawValue vTy

@@ -1,9 +1,7 @@
 module Gens.Auto.Interface.Misc
 
-
 import public Gens.Auto.Interface.Common
 import public Spec.Misc
-
 
 public export
 genBoolAnd012 : Fuel -> Gen MaybeEmpty $ (a ** b ** c ** BoolAnd a b c)

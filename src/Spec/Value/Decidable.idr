@@ -1,10 +1,10 @@
 module Spec.Value.Decidable
 
-
-import public Control.Function
+import Spec.Value.Value
+import Control.Function
 import public Decidable.Equality
-import public Spec.Value
 
+%default total
 
 public export
 Injective Value.RawI where

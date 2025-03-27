@@ -2,141 +2,137 @@ module Spec.Context
 
 import public Spec.Value
 
-
 %default total
 
-
 namespace Source
-  -- Source is a context at the moment of a jump
   public export
   data Source : Nat -> Type where
-    Src : Nat -> VectValue n -> Source n
+    Src : VectValue n -> Source n
 
-  public export
-  (.undeterminedCount) : Source n -> Nat
-  (Src uc regs).undeterminedCount = uc
+  %name Source src
 
   public export
   (.registers) : Source n -> VectValue n
-  (Src uc regs).registers = regs
+  (.registers) (Src vs) = vs
 
   public export
-  data ListSource : Nat -> Type where
-    Nil : ListSource n
-    (::) : Source n -> ListSource n -> ListSource n
+  data MaybeSource : Nat -> Type where
+    Nothing : MaybeSource n
+    Just : Source n -> MaybeSource n
 
   public export
-  data Length : (ss : ListSource n) -> Nat -> Type where
-    [search ss]
-    LengthEmpty : Length [] Z
-    LengthNonEmpty : Length ss' l' -> Length (s :: ss') (S l')
+  data VectSource : Nat -> Nat -> Type where
+    Nil : VectSource 0 n
+    (::) : Source n -> VectSource m n -> VectSource (S m) n
 
-  %name Length lenPrf
-
-  public export
-  data Index : (i : Fin l) -> (ss : ListSource n) -> Length ss l => Source n -> Type where
-    [search i ss]
-    IndexBase : Index FZ (s :: ss') @{_} s
-    IndexStep : Index i' ss' @{lenPrf'} s -> Index (FS i') (s' :: ss') @{LengthNonEmpty lenPrf'} s
-
-  %name Source.Index indPrf
+  %name VectSource srcs
 
   public export
-  data Concat : (leftSs : ListSource n) -> (rightSs : ListSource n) -> ListSource n -> Type where
-    [search leftSs rightSs]
-    ConcatBase : Concat [] ss ss
-    ConcatStep : Concat {n} ss1' ss2 ss -> Concat {n} (s :: ss1') ss2 (s :: ss)
+  foldr : (Source n -> acc -> acc) -> acc -> VectSource m n -> acc
+  foldr f x [] = x
+  foldr f x (src :: srcs) = f src (foldr f x srcs)
 
   public export
-  length : ListSource n -> Nat
-  length [] = Z
-  length (s :: ss') = S $ length ss'
+  data HasOneSource : MaybeSource n -> VectSource m n -> Type where
+    HasImmSrc : HasOneSource (Just _) srcs
+    HasOneSrc : HasOneSource msrc (src :: srcs)
+
+namespace Bool
+  public export
+  data HasTrueBut : VectBool n -> MaybeSource m -> Type where
+    HasTrueSure : HasTrue bs => HasTrueBut bs Nothing
+    HasTrueMaybe : HasTrueBut bs (Just _)
+
+namespace Source
+  public export
+  append' : MaybeSource n -> {l : _} -> VectSource l n -> (r ** VectSource r n)
+  append' Nothing srcs = (_ ** srcs)
+  append' (Just src) srcs = (_ ** src :: srcs)
 
   public export
-  index : (i : Fin l) -> (ss : ListSource n) -> Length ss l => Source n
-  index i [] @{LengthEmpty} = absurd i
-  index FZ (s :: ss') @{LengthNonEmpty _} = s
-  index (FS i') (s :: ss') @{LengthNonEmpty _} = index i' ss'
+  append'' : MaybeSource n -> {l : _} -> VectSource (S l) n -> (r ** VectSource (S r) n)
+  append'' Nothing srcs = (_ ** srcs)
+  append'' (Just src) srcs = (_ ** src :: srcs)
 
   public export
-  (++) : ListSource n -> ListSource n -> ListSource n
-  [] ++ ss2 = ss2
-  (s :: ss1') ++ ss2 = s :: (ss1' ++ ss2)
+  extractAt : (idx : Fin $ S m) -> VectSource (S m) n -> (Source n, VectSource m n)
+  extractAt _ (src :: []) = (src, [])
+  extractAt FZ (src :: src1 :: srcs) = (src, src1 :: srcs)
+  extractAt (FS idx') (src :: src1 :: srcs) = let (extracted, rem) = extractAt idx' (src1 :: srcs) in (extracted, src :: rem)
 
   public export
-  pick : (i : Fin l) -> (ss : ListSource n) -> Length ss l => (Source n, ListSource n)
-  pick i [] @{LengthEmpty} = absurd i
-  pick FZ (s :: ss') @{LengthNonEmpty _} = (s, ss')
-  pick (FS i') (s :: ss') @{LengthNonEmpty _} = do
-    let (recS, recSs) = pick i' ss'
-    (recS, s :: recSs)
+  extractAtMany' : (bs : VectBool m) -> VectSource m n -> ((k ** VectSource k n), (l ** VectSource l n))
+  extractAtMany' [] [] = ((0 ** []), (0 ** []))
+  extractAtMany' (b :: bs) (src :: srcs) = do
+    let rec : ?; rec = extractAtMany' bs srcs
+    -- TODO: (extracted, rem) = is broken, terrible syntax :(
+    let extracted : ?; extracted = fst rec
+    let rem : ?; rem = snd rec
+    case b of
+         True => ((_ ** src :: snd extracted), rem)
+         False => (extracted, (_ ** src :: snd rem))
 
   public export
-  pick' : (ss : ListSource n) -> (i : Fin $ length ss) -> (Source n, ListSource n)
-  pick' [] i = absurd i
-  pick' (s :: ss') FZ = (s, ss')
-  pick' (s :: ss') (FS i') = do
-    let (recS, recSs) = pick' ss' i'
-    (recS, s :: recSs)
-
-namespace Guarantee
-  public export
-  data Guarantee = SavesValue | SavesType | SavesNothing
-
-  %name Guarantee g
-
-  -- TODO: or name it ListGuarantee?
-  -- TODO: just SavesValue must become (SavesType True)
-  public export
-  data Guarantees : (n : Nat) -> Type where
-    Nil : Guarantees 0
-    (::) : Guarantee -> Guarantees n -> Guarantees (S n)
-
-  %name Guarantees gs
-
-  public export
-  data IsMet : Guarantee -> Value -> Value -> Type where
-    ValueIsMet : IsMet SavesValue (JustV vExpr) (JustV vExpr)
-    TypeIsMet : IsMet SavesType (JustV {vTy} vExpr1) (JustV {vTy} vExpr2)
-
-namespace Loop
-  public export
-  data SavedContext : Nat -> Type where
-    SCtx : {-undeterminedCount-}Nat -> {-regs-}VectValue n -> SavedContext n
+  extractAtMany : (bs : VectBool m) -> {msrc : MaybeSource n} -> HasTrueBut bs msrc => VectSource m n -> ((k' ** VectSource (S k') n), (l ** VectSource l n))
+  extractAtMany [] {msrc = Nothing} @{HasTrueSure @{hasTrue}} [] = void $ lemma hasTrue
+  where
+    lemma : HasTrue [] -> Void
+    lemma _ impossible
+  -- TODO: cannot simply pattern match on hasTrue
+  extractAtMany (b :: bs) {msrc = Nothing} @{HasTrueSure @{hasTrue}} (src :: srcs) with (hasTrue)
+    extractAtMany (True :: bs) {msrc = Nothing} @{HasTrueSure @{hasTrue}} (src :: srcs) | Here = do
+      let rec : ?; rec = extractAtMany' bs srcs
+      let extracted : ?; extracted = fst rec
+      let rem : ?; rem = snd rec
+      ((_ ** src :: snd extracted), rem)
+    extractAtMany (True :: bs) {msrc = Nothing} @{HasTrueSure @{hasTrue}} (src :: srcs) | (There hasTrue') = do
+      let rec : ?; rec = extractAtMany bs @{HasTrueSure} srcs
+      let extracted : ?; extracted = fst rec
+      let rem : ?; rem = snd rec
+      ((_ ** src :: snd extracted), rem)
+    extractAtMany (False :: bs) {msrc = Nothing} @{HasTrueSure @{hasTrue}} (src :: srcs) | (There hasTrue') = do
+      let rec : ?; rec = extractAtMany bs @{HasTrueSure} srcs
+      let extracted : ?; extracted = fst rec
+      let rem : ?; rem = snd rec
+      (extracted, (_ ** src :: snd rem))
+  extractAtMany bs {msrc = Just src} @{HasTrueMaybe} srcs = do
+    let rec : ?; rec = extractAtMany' bs srcs
+    let extracted : ?; extracted = fst rec
+    let rem : ?; rem = snd rec
+    ((_ ** src :: snd extracted), rem)
 
   public export
-  record Loop (n : Nat) where
-    constructor L
-
-    savedContext : SavedContext n
-    initialContext : VectValue n -- context at the moment of the loop iteration beginning
-    contextGuarantees : Guarantees n
-    lockedSources : ListSource n
+  mergeStep : Nat -> VectSource (S k') (S n) -> (Nat, Value, VectSource (S k') n)
+  mergeStep uc ((Src $ Unkwn :: vs) :: []) = (uc, Unkwn, [Src vs])
+  mergeStep uc ((Src $ (JustV {vTy} {isDet = False} vExpr) :: vs) :: []) = (S uc, JustV $ Undet vTy uc, [Src vs])
+  mergeStep uc ((Src $ v@(JustV {isDet = True} vExpr) :: vs) :: []) = (uc, v, [Src vs])
+  mergeStep uc ((Src $ v :: vs) :: src1 :: srcs) = do
+    let (_, merged, rest) = mergeStep 0 (src1 :: srcs)
+    let (uc1, v1) = mergeValues uc v merged
+    (uc1, v1, Src vs :: rest)
+  where
+    mergeValues : Nat -> Value -> Value -> (Nat, Value)
+    mergeValues uc Unkwn v2 = (uc, Unkwn)
+    mergeValues uc (JustV vExpr) Unkwn = (uc, Unkwn)
+    mergeValues uc (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) with (decEq vTy1 vTy2, decEq isDet1 isDet2)
+      mergeValues uc (JustV {vTy} {isDet} vExpr1) (JustV {vTy} {isDet} vExpr2) | (Yes Refl, Yes Refl) =
+        case decEq vExpr1 vExpr2 of
+             (Yes Refl) => if isDet
+                              then (uc, JustV vExpr1)
+                              else (S uc, JustV $ Undet vTy uc)
+             (No _) => (S uc, JustV $ Undet vTy uc)
+      mergeValues uc (JustV {vTy} {isDet=isDet1} vExpr1) (JustV {vTy} {isDet=isDet2} vExpr2) | (Yes Refl, No _) = (S uc, JustV $ Undet vTy uc)
+      mergeValues uc (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) | (No _, _) = (uc, Unkwn)
 
   public export
-  data ListLoop : (n : Nat) -> Type where
-    Nil : ListLoop n
-    (::) : Loop n -> ListLoop n -> ListLoop n
+  merge' : {n : _} -> Nat -> VectSource (S k') n -> (Nat, Source n)
+  merge' {n=Z} _ _ = (0, Src [])
+  merge' {n=S n'} uc (src :: srcs) = do
+    let (uc1, mergedZero, rest) = mergeStep uc (src :: srcs)
+    let (uc2, Src regs') = merge' uc1 rest
+    (uc2, Src $ mergedZero :: regs')
 
   public export
-  length : ListLoop n -> Nat
-  length [] = 0
-  length (l :: ls') = S $ length ls'
-
-public export
-record Context (n : Nat) where
-  constructor Ctx
-
-  openLoops : ListLoop n
-  undeterminedCount : Nat
-  registers : VectValue n
-  isInLinearBlock : Bool
-  freeSources : ListSource n
-
-%name Context ctx
-
-public export
-data Finished : Context n -> Type where
-  -- TODO: actually, False can be omitted, but just to be clear for now
-  CtxIsFinished : Finished (Ctx [] _ _ False [])
+  merge : {n : _} -> VectSource (S k') n -> Source n 
+  merge = snd . (merge' 0)
 
