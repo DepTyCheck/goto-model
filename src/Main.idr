@@ -14,7 +14,6 @@ import System.Clock
 import System.Random.Pure.StdGen
 
 import Test.DepTyCheck.Gen
-import Show.Misc
 import Show.Program.Asm
 -- import Gens.Auto.Derivation
 import Gens.Auto.Derivation.Program

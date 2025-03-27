@@ -2,7 +2,6 @@ module Show.Program.Asm
 
 import public Spec.Program.Labelled
 
-import Show.Misc
 import Show.Program.LinearBlock
 import Control.Monad.State
 import Data.Vect
