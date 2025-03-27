@@ -1,6 +1,6 @@
 # goto-model
 
-It is a model of some abstract assembly language. Key feature of the model is work with conditional jumps instead of structured approach.
+It is a model of some abstract assembly language. Key feature of the model is work with conditional jumps instead of [structured approach](https://en.wikipedia.org/wiki/Structured_programming).
 
 ## Current model
 
@@ -34,4 +34,4 @@ The language consists of the following instructions:
  }
  ```
 
- - A program's CFG can be viewed as a rooted tree with nested loops only
+- A program does not provide certain conditions for condjmps.
