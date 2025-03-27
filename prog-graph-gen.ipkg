@@ -16,14 +16,12 @@ langversion >= 0.7.0
 depends = deptycheck
 
 -- modules to install
--- modules =
+-- modules = Gens.Auto.Derivation.Test
 
 -- main file (i.e. file to load at REPL)
-executable = prog-graph-gen
+executable = gen
 main = Main
 
--- name of executable
--- executable =
 -- opts =
 sourcedir = "src"
 builddir = ".build"
