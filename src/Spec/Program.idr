@@ -22,6 +22,26 @@ namespace Possible
   data IsUndet : Fin n -> VectValue n -> Type where
     Here : IsUndet 0 (JustV {vTy} {isDet=False} _ :: vs)
     There : IsUndet idx' vs -> IsUndet (FS idx') (v :: vs)
+
+  public export
+  anyUndetDependsOnlyOnSelf : (initRegs : VectValue n) -> AreWinded' savedRegs gs initRegs uc =>
+                              (finalRegs : VectValue n) -> CanUnwindAll initRegs gs finalRegs => Bool
+  anyUndetDependsOnlyOnSelf [] @{AreWindedBase'} [] @{CanUnwindAllBase} = False
+  anyUndetDependsOnlyOnSelf ((JustV $ Undet vTy uc) :: initRegs) @{AreWindedStep' @{IsWindedGValue' @{IsWindedUndet'}} areWinded''}
+                            ((JustV $ Undet vTy uc) :: finalRegs) @{CanUnwindAllStep @{CanUnwindGValue} _} = True
+  anyUndetDependsOnlyOnSelf ((JustV vExpr) :: initRegs) @{AreWindedStep' @{IsWindedGValue' @{IsWindedDet'}} areWinded''}
+                            ((JustV vExpr) :: finalRegs) @{CanUnwindAllStep @{CanUnwindGValue} _} =
+    anyUndetDependsOnlyOnSelf initRegs @{areWinded''} finalRegs
+  anyUndetDependsOnlyOnSelf ((JustV $ Undet vTy initIdx) :: initRegs) @{AreWindedStep' @{IsWindedGType'} areWinded''}
+                            ((JustV {isDet = finalIsDet} finalExpr) :: finalRegs) @{CanUnwindAllStep @{CanUnwindGType} _} = do
+    let b : Bool; b = case finalIsDet of
+                           True => False
+                           False => dependsOnlyOn initIdx finalExpr
+    b || anyUndetDependsOnlyOnSelf initRegs @{areWinded''} finalRegs
+  anyUndetDependsOnlyOnSelf (Unkwn :: initRegs) @{AreWindedStep' @{IsWindedGNothing'} areWinded''}
+                            (fr :: finalRegs) @{CanUnwindAllStep @{CanUnwindGNothing} _} =
+    anyUndetDependsOnlyOnSelf initRegs @{areWinded''} finalRegs
+  anyUndetDependsOnlyOnSelf _ _ = False  -- TODO: compiler is broken :(
   
   public export
   data Possible : (remSrcs : VectSource l n) -> (finalRegs : VectValue n) ->

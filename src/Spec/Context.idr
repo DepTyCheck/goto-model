@@ -66,7 +66,6 @@ namespace Source
   extractAtMany' [] [] = ((0 ** []), (0 ** []))
   extractAtMany' (b :: bs) (src :: srcs) = do
     let rec : ?; rec = extractAtMany' bs srcs
-    -- TODO: (extracted, rem) = is broken, terrible syntax :(
     let extracted : ?; extracted = fst rec
     let rem : ?; rem = snd rec
     case b of
@@ -115,39 +114,6 @@ namespace Source
   -- after a loop we do similar things as in merge. Thus, during unwind we use the same global value to introduce changed undetermined values.
   -- If we can, we just change the expressions using the same undet values from saved context
 
-{-
-  public export
-  mergeStep : Nat -> VectSource (S k') (S n) -> (Nat, Value, VectSource (S k') n)
-  mergeStep uc ((Src $ Unkwn :: vs) :: []) = (uc, Unkwn, [Src vs])
-  mergeStep uc ((Src $ (JustV {vTy} {isDet = False} vExpr) :: vs) :: []) = (S uc, JustV $ Undet vTy uc, [Src vs])
-  mergeStep uc ((Src $ v@(JustV {isDet = True} vExpr) :: vs) :: []) = (uc, v, [Src vs])
-  mergeStep uc ((Src $ v :: vs) :: src1 :: srcs) = do
-    let (_, merged, rest) = mergeStep 0 (src1 :: srcs)
-    let (uc1, v1) = mergeValues uc v merged
-    (uc1, v1, Src vs :: rest)
-  where
-    mergeValues : Nat -> Value -> Value -> (Nat, Value)
-    mergeValues uc Unkwn v2 = (uc, Unkwn)
-    mergeValues uc (JustV vExpr) Unkwn = (uc, Unkwn)
-    mergeValues uc (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) with (decEq vTy1 vTy2, decEq isDet1 isDet2)
-      mergeValues uc (JustV {vTy} {isDet} vExpr1) (JustV {vTy} {isDet} vExpr2) | (Yes Refl, Yes Refl) =
-        case decEq vExpr1 vExpr2 of
-             (Yes Refl) => if isDet
-                              then (uc, JustV vExpr1)
-                              else (S uc, JustV $ Undet vTy uc)
-             (No _) => (S uc, JustV $ Undet vTy uc)
-      mergeValues uc (JustV {vTy} {isDet=isDet1} vExpr1) (JustV {vTy} {isDet=isDet2} vExpr2) | (Yes Refl, No _) = (S uc, JustV $ Undet vTy uc)
-      mergeValues uc (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) | (No _, _) = (uc, Unkwn)
-
-  public export
-  merge' : {n : _} -> Nat -> VectSource (S k') n -> (Nat, Source n)
-  merge' {n=Z} _ _ = (0, Src [])
-  merge' {n=S n'} uc (src :: srcs) = do
-    let (uc1, mergedZero, rest) = mergeStep uc (src :: srcs)
-    let (uc2, Src regs') = merge' uc1 rest
-    (uc2, Src $ mergedZero :: regs')
-
--}
   public export
   erase : VType -> StateT Bool (State Nat) Value
   erase vTy = do
@@ -210,8 +176,6 @@ namespace Source
   merge : {n : _} -> VectSource (S k') n -> (uc : Nat) -> (Source n, Nat)
   merge srcs uc = swap $ runState uc $ merge' srcs
 
-{-
-
 namespace Loop
   namespace Guarantee
     public export
@@ -226,7 +190,6 @@ namespace Loop
     data IsWindedWithGValue' : Value -> Value -> Nat -> Nat -> Type where
       IsWindedUndet' : IsWindedWithGValue' (JustV {vTy} {isDet = False} vExpr) (JustV $ Undet vTy uc) uc (S uc)
       IsWindedDet' : IsWindedWithGValue' (JustV {isDet = True} vExpr) (JustV vExpr) uc uc
-
 
     public export
     data IsWinded' : Value -> Guarantee -> Value -> Nat -> Nat -> Type where
@@ -262,9 +225,11 @@ namespace Loop
                          CanUnwind ir g fr =>
                          CanUnwindAll (ir :: initRegs) (g :: gs) (fr :: finalRegs)
 
+  -- When loop starts, we save the current context and create a new one
+  -- For simplicity, we do not merge any free sources or sources from outer loops during the current loop
   public export
   data Loop : Nat -> Type where
-    L : (savedRegs : VectValue n) -> (gs : VectGuarantee n) -> (initRegs : VectValue n) ->
+    L : (savedRegs : VectValue n) -> (savedUc : Nat)-> (gs : VectGuarantee n) -> (initRegs : VectValue n) ->
         AreWinded savedRegs gs initRegs =>
         Loop n
 
@@ -275,40 +240,56 @@ namespace Loop
     Nil : ListLoop n
     (::) : Loop n -> ListLoop n -> ListLoop n
 
-  {-
-  -- TODO: Nat in state is from saved context!
+  public export
+  dependsOnlyOn : (idx : Nat) -> (vExpr : VExpr vTy isDet) -> Bool
+  dependsOnlyOn _ (Det _) = True
+  dependsOnlyOn idx (Undet vTy idx') = idx == idx'
+  dependsOnlyOn idx (Op vop vExprL vExprR) = (dependsOnlyOn idx vExprL) && (dependsOnlyOn idx vExprR)
+
+  public export
+  unwindValue : {vTy : _} -> {isDet, finalIsDet : _} ->
+                (savedExpr : VExpr vTy isDet) -> (initIdx : Nat) -> (finalExpr : VExpr vTy finalIsDet) ->
+                State Nat Value
+  unwindValue {vTy} {finalIsDet = False} savedExpr initIdx finalExpr = do
+    if dependsOnlyOn initIdx finalExpr
+       then do
+         case finalExpr of
+              (Undet vTy idx) => do
+                case decEq initIdx idx of
+                     (Yes Refl) => pure $ JustV savedExpr
+                     (No _) => state $ \uc => (S uc, JustV $ Undet vTy uc)
+              -- TODO: add patterns
+              (Op _ _ _) => state $ \uc => (S uc, JustV $ Undet vTy uc)
+       else state $ \uc => (S uc, JustV $ Undet vTy uc)
+  unwindValue {vTy} {finalIsDet = True} savedExpr initIdx finalExpr = pure $ JustV finalExpr
+    
+  public export
+  introduceValue : (fr : Value) -> State Nat Value
+  introduceValue Unkwn = pure Unkwn
+  introduceValue (JustV {vTy} {isDet = False} vExpr) = state $ \uc => (S uc, JustV $ Undet vTy uc)
+  introduceValue fr@(JustV {isDet = True} vExpr) = pure fr
+
   public export
   unwind' : {n : _} ->
             (savedRegs : _) -> (gs : _) -> (initRegs, finalRegs : _) ->
             AreWinded' {n} savedRegs gs initRegs uc => CanUnwindAll {n} initRegs gs finalRegs =>
             State Nat $ VectValue n
   unwind' [] [] [] [] @{AreWindedBase'} @{CanUnwindAllBase} = pure []
-  unwind' ((JustV vExpr) :: savedRegs) (GValue :: gs) ((JustV $ Undet vTy uc) :: initRegs) ((JustV $ Undet vTy uc) :: finalRegs)
-    @{AreWindedStep' @{IsWindedGValue' @{IsWindedUndet'}} areWinded''} @{CanUnwindAllStep @{CanUnwindGValue} canUnwindAll'} = do
-      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''} @{canUnwindAll'}
-      pure $ (JustV vExpr) :: rec
-
-  unwind' ((JustV vExpr) :: savedRegs) (GValue :: gs) ((JustV vExpr) :: initRegs) ((JustV vExpr) :: finalRegs)
-    @{AreWindedStep' @{IsWindedGValue' @{IsWindedDet'}} areWinded''} @{CanUnwindAllStep @{CanUnwindGValue} canUnwindAll'} = do
-      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''} @{canUnwindAll'}
-      pure $ (JustV vExpr) :: rec
-
-  unwind' ((JustV vExpr) :: savedRegs) (GType :: gs) ((JustV $ Undet vTy i) :: initRegs) ((JustV finalExpr) :: finalRegs)
+  unwind' (sr :: savedRegs) (GValue :: gs) (ir :: initRegs) (ir :: finalRegs)
+    @{AreWindedStep' @{IsWindedGValue'} areWinded''} @{CanUnwindAllStep @{CanUnwindGValue} canUnwindAll'} = do
+      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''}
+      pure $ sr :: rec
+  unwind' ((JustV vExpr) :: savedRegs) (GType :: gs) ((JustV $ Undet vTy idx) :: initRegs) ((JustV finalExpr) :: finalRegs)
     @{AreWindedStep' @{IsWindedGType'} areWinded''} @{CanUnwindAllStep @{CanUnwindGType} canUnwindAll'} = do
-      -- if finalExpr is recursive on initExpr, then try to form an expression with vExpr
-      -- else, just Undet vTy
-      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''} @{canUnwindAll'}
-      ?unwind_rhs_8
-
+      r <- unwindValue vExpr idx finalExpr
+      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''}
+      pure $ r :: rec
   unwind' (sr :: savedRegs) (GNothing :: gs) (Unkwn :: initRegs) (fr :: finalRegs)
     @{AreWindedStep' @{IsWindedGNothing'} areWinded''} @{CanUnwindAllStep @{CanUnwindGNothing} canUnwindAll'} = do
-      -- if fr is Unkwn, then Unkwn
-      -- else
-      --   if is determined, then constant
-      --   else Undet
-      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''} @{canUnwindAll'}
-      ?unwind'_rhs_9
-  -- TODO: I have no idea what to do with these bugs
+      r <- introduceValue fr
+      rec <- unwind' savedRegs gs initRegs finalRegs @{areWinded''}
+      pure $ r :: rec
+  -- TODO: I have no idea what to do with these covering bugs
   unwind' _ _ _ _ = pure never
   where
     never : {n : _} -> VectValue n
@@ -317,8 +298,8 @@ namespace Loop
 
   public export
   unwind : {n : _} ->
-           (savedRegs : _) -> (gs : _) -> (initRegs, finalRegs : _) ->
+           (savedRegs : _) -> (savedUc : Nat) -> (gs : _) -> (initRegs, finalRegs : _) ->
            AreWinded {n} savedRegs gs initRegs => CanUnwindAll {n} initRegs gs finalRegs =>
            VectValue n
-  unwind savedRegs gs initRegs finalRegs @{TheyAreWinded @{areWinded'}} = evalState 0 $ unwind' savedRegs gs initRegs finalRegs @{areWinded'}
+  unwind savedRegs savedUc gs initRegs finalRegs @{TheyAreWinded @{areWinded'}} = evalState savedUc $ unwind' savedRegs gs initRegs finalRegs @{areWinded'}
 
