@@ -20,22 +20,22 @@ genProgram : Fuel ->
              (Fuel -> {n : _} -> (regs : VectValue n) -> Gen MaybeEmpty (finalRegs ** LinearBlock regs finalRegs)) =>
              (Fuel -> {n : _} -> {l : _} -> (srcs : VectSource l n) -> (regs : VectValue n) -> Gen MaybeEmpty (r ** contMsrc1 ** contMsrc2 ** contSrcs' : VectSource r n ** Possible srcs regs contMsrc1 contMsrc2 contSrcs')) =>
              {n, m : _} ->
-             (immSrc, delaSrc : _) -> (srcs : VectSource m n) -> Gen MaybeEmpty $ Program immSrc delaSrc srcs
-genProgram f Dry immSrc Nothing [] = case immSrc of
+             (immSrc, delaSrc : _) -> (srcs : VectSource m n) -> (uc : _) -> Gen MaybeEmpty $ Program immSrc delaSrc srcs uc
+genProgram f Dry immSrc Nothing [] uc = case immSrc of
                                           Nothing => pure Finish
                                           (Just _) => pure FinishAll
-genProgram f Dry _ Nothing (src :: srcs) = pure FinishAll
-genProgram f Dry _ (Just _) srcs = empty
-genProgram f curF@(More curF') @{genHasTrueBut} @{genLinearBlock} @{genPossible} immSrc delaSrc srcs = do
-  let TargetType : Type; TargetType = Program immSrc delaSrc $ srcs
+genProgram f Dry _ Nothing (src :: srcs) uc = pure FinishAll
+genProgram f Dry _ (Just _) srcs uc = empty
+genProgram f curF@(More curF') @{genHasTrueBut} @{genLinearBlock} @{genPossible} immSrc delaSrc srcs uc = do
+  let TargetType : Type; TargetType = Program immSrc delaSrc srcs uc
 
   let stepPath : Gen MaybeEmpty TargetType; stepPath = do
     (bs ** hasTrueBut) <- genHasTrueBut f immSrc
     let extr : ?; extr = extractAtMany bs @{hasTrueBut} (srcs)
-    let merged : Source n; merged = merge (snd $ append'' immSrc (snd $ fst extr))
-    (finalRegs ** linBlk) <- genLinearBlock f merged.registers
+    let merged : (Source n, Nat); merged = merge (snd $ append'' immSrc (snd $ fst extr)) uc
+    (finalRegs ** linBlk) <- genLinearBlock f (fst merged).registers
     (_ ** contImmSrc ** contDelaSrc ** contSrcs' ** possible) <- genPossible f (snd $ snd extr) finalRegs
-    cont <- genProgram f curF' @{genHasTrueBut} @{genLinearBlock} @{genPossible} contImmSrc contDelaSrc (snd $ append' delaSrc contSrcs')
+    cont <- genProgram f curF' @{genHasTrueBut} @{genLinearBlock} @{genPossible} contImmSrc contDelaSrc (snd $ append' delaSrc contSrcs') (snd merged)
     pure $ Step bs @{hasTrueBut} linBlk @{possible} cont
 
   let finishAllPath : Gen MaybeEmpty TargetType; finishAllPath = do

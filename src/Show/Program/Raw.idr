@@ -35,7 +35,7 @@ Show (VectBool {}) where
          else joinBy ", " [show n, rec]
 
 public export
-Show (Program {n = S n'} immSrc delaSrc srcs) where
+Show (Program {n = S n'} immSrc delaSrc srcs uc) where
   show (Step bs @{hasTypeBut} linBlk @{possible} cont) = do
     let pre = "Available: \{show $ length bs}, bs: \{show bs}"
     let post : String; post = case possible of

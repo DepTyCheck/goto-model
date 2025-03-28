@@ -78,7 +78,7 @@ showJmp ItIsPossibleToJmp jmpLbl = "jmp \{jmpLbl}"
 showJmp ItIsPossibleToCondjmp jmpLbl = "condjmp \{jmpLbl}"
 
 showBlocks' : {fullL : _} ->
-              {immSrc, delaSrc : MaybeSource n} -> {m : _} -> {srcs : VectSource m n} -> (prog : Program immSrc delaSrc srcs) ->
+              {immSrc, delaSrc : MaybeSource n} -> {m : _} -> {srcs : VectSource m n} -> (prog : Program immSrc delaSrc srcs uc) ->
               let l : ?; l = blkCount prog in
               l `LTE` fullL =>
               {-labels of blocks from prog-}Vect l String ->
@@ -105,18 +105,18 @@ showBlocks' Finish [] _ _ _ = pure []
 showBlocks' FinishAll [] _ _ _ = pure []
 
 public export
-showBlocks : {src : _} -> (prog : Program Nothing Nothing [src]) -> Vect (blkCount prog) String
+showBlocks : {src : _} -> (prog : Program Nothing Nothing [src] uc) -> Vect (blkCount prog) String
 showBlocks prog = do
   let l : ?; l = blkCount prog
   evalState (Vect.replicate (S l) "unknown") $ showBlocks' {fullL=S l} prog @{lteSuccRight reflexive} (labelProgram prog) NoIndex NoIndex [natToFinLT @{LTESucc reflexive} l]
 
-isFinishedCorrectly : Program immSrc delaSrc srcs -> Bool
+isFinishedCorrectly : Program immSrc delaSrc srcs uc -> Bool
 isFinishedCorrectly (Step _ _ cont) = isFinishedCorrectly cont
 isFinishedCorrectly Finish = True
 isFinishedCorrectly FinishAll = False
 
 public export
-{src : _} -> Show (Program {n = S n'} Nothing Nothing [src]) where
+{src : _} -> Show (Program {n = S n'} Nothing Nothing [src] uc) where
   show prog = do
     let ppBlks : ?; ppBlks = showBlocks prog
     let ppProg = joinBy "\n\n" $ toList ppBlks
