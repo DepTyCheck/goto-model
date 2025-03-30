@@ -44,29 +44,29 @@ namespace Possible
   anyUndetDependsOnlyOnSelf _ _ = False  -- TODO: compiler is broken :(
 
   public export
-  data Sink : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) ->
+  data Sink : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> (ols : ListLoop n) ->
               (bs : VectBool m) ->
-              {-merged-}Source n -> {l : _} -> {-remained srcs-}VectSource l n -> {-contUc-}Nat -> Type where
+              {-merged-}Source n -> {l : _} -> {-remained srcs-}VectSource l n -> {-contUc-}Nat -> {-contOls'-}ListLoop n -> Type where
     SinkWithImmediate : {m, n : _} ->
-                        {src : Source n} -> {srcs : VectSource m n} -> {uc : _} ->
+                        {src : Source n} -> {srcs : VectSource m n} -> {uc : _} -> {ols : ListLoop n} ->
                         {bs : VectBool m} ->
                         let extr : ((k ** VectSource k n), (l ** VectSource l n)); extr = extractAtMany' bs srcs in
                         let merged : (Source n, Nat); merged = merge @{ItIsSucc} (src :: (snd $ fst extr)) uc in
-                        Sink {m} (Just $ src) srcs uc bs (fst merged) (snd $ snd extr) (snd merged)
+                        Sink {m} (Just $ src) srcs uc ols bs (fst merged) (snd $ snd extr) (snd merged) ols
     SinkWithNothing : {m', n : _} ->
-                      {src : Source n} -> {srcs : VectSource m' n} -> {uc : _} ->
+                      {src : Source n} -> {srcs : VectSource m' n} -> {uc : _} -> {ols : ListLoop n} ->
                       {bs : VectBool $ S m'} ->
                       (hasTrue : HasTrue bs) =>
                       let extr : ((k' ** VectSource (S k') n), (l ** VectSource l n)); extr = extractAtMany bs (src :: srcs) in
                       let merged : (Source n, Nat); merged = merge @{ItIsSucc} (snd $ fst extr) uc in
-                      Sink {m = S m'} Nothing (src :: srcs) uc bs (fst merged) (snd $ snd extr) (snd merged)
+                      Sink {m = S m'} Nothing (src :: srcs) uc ols bs (fst merged) (snd $ snd extr) (snd merged) ols
 
   public export
-  data Possible : (remSrcs : VectSource l n) -> (finalRegs : VectValue n) ->
-                  MaybeSource n -> MaybeSource n -> VectSource r n -> Type where
-    ItIsPossibleToExit : Possible srcs regs Nothing Nothing srcs
-    ItIsPossibleToJmp : Possible srcs regs Nothing Nothing (Src regs :: srcs)
-    ItIsPossibleToCondjmp : IsUndet i regs => Possible srcs regs (Just $ Src regs) (Just $ Src regs) srcs
+  data Possible : (remSrcs : VectSource l n) -> (ols : ListLoop n) -> (finalRegs : VectValue n) ->
+                  MaybeSource n -> MaybeSource n -> VectSource r n -> ListLoop n -> Type where
+    ItIsPossibleToExit : Possible srcs ols regs Nothing Nothing srcs ols
+    ItIsPossibleToJmp : Possible srcs ols regs Nothing Nothing (Src regs :: srcs) ols
+    ItIsPossibleToCondjmp : IsUndet i regs => Possible srcs ols regs (Just $ Src regs) (Just $ Src regs) srcs ols
 
 
 -- immediate source - is always taken
@@ -80,10 +80,10 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
   Step : {srcs : VectSource m n} ->
          {l : _} -> {remSrcs : VectSource l n} -> {contImmSrc, contDelaSrc : _} -> {r : _} -> {contSrcs' : VectSource r n} ->
          (bs : VectBool m) ->
-         Sink immSrc srcs uc bs curSrc remSrcs contUc =>
+         Sink immSrc srcs uc ols bs curSrc remSrcs contUc contOls' =>
          LinearBlock curSrc.registers finalRegs ->
-         Possible remSrcs finalRegs contImmSrc contDelaSrc contSrcs' =>
-         Program contImmSrc contDelaSrc (snd $ append' delaSrc contSrcs') contUc ols ->
+         Possible remSrcs contOls' finalRegs contImmSrc contDelaSrc contSrcs' contOls =>
+         Program contImmSrc contDelaSrc (snd $ append' delaSrc contSrcs') contUc contOls ->
          Program immSrc delaSrc srcs uc ols
   Finish : Program Nothing Nothing [] uc []
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []
