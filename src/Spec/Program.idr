@@ -42,13 +42,32 @@ namespace Possible
                             (fr :: finalRegs) @{CanUnwindAllStep @{CanUnwindGNothing} _} =
     anyUndetDependsOnlyOnSelf initRegs @{areWinded''} finalRegs
   anyUndetDependsOnlyOnSelf _ _ = False  -- TODO: compiler is broken :(
-  
+
+  public export
+  data Sink : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) ->
+              (bs : VectBool m) ->
+              {-merged-}Source n -> {l : _} -> {-remained srcs-}VectSource l n -> {-contUc-}Nat -> Type where
+    SinkWithImmediate : {m, n : _} ->
+                        {src : Source n} -> {srcs : VectSource m n} -> {uc : _} ->
+                        {bs : VectBool m} ->
+                        let extr : ((k ** VectSource k n), (l ** VectSource l n)); extr = extractAtMany' bs srcs in
+                        let merged : (Source n, Nat); merged = merge @{ItIsSucc} (src :: (snd $ fst extr)) uc in
+                        Sink {m} (Just $ src) srcs uc bs (fst merged) (snd $ snd extr) (snd merged)
+    SinkWithNothing : {m', n : _} ->
+                      {src : Source n} -> {srcs : VectSource m' n} -> {uc : _} ->
+                      {bs : VectBool $ S m'} ->
+                      (hasTrue : HasTrue bs) =>
+                      let extr : ((k' ** VectSource (S k') n), (l ** VectSource l n)); extr = extractAtMany bs (src :: srcs) in
+                      let merged : (Source n, Nat); merged = merge @{ItIsSucc} (snd $ fst extr) uc in
+                      Sink {m = S m'} Nothing (src :: srcs) uc bs (fst merged) (snd $ snd extr) (snd merged)
+
   public export
   data Possible : (remSrcs : VectSource l n) -> (finalRegs : VectValue n) ->
                   MaybeSource n -> MaybeSource n -> VectSource r n -> Type where
     ItIsPossibleToExit : Possible srcs regs Nothing Nothing srcs
     ItIsPossibleToJmp : Possible srcs regs Nothing Nothing (Src regs :: srcs)
     ItIsPossibleToCondjmp : IsUndet i regs => Possible srcs regs (Just $ Src regs) (Just $ Src regs) srcs
+
 
 -- immediate source - is always taken
 -- delayed source - is always avoided for 1 step
@@ -57,24 +76,21 @@ namespace Possible
 -- thus, with immediate source I also need a delayed one
 -- just delayed isn't enough because it doesn't force the generator to choose the other source
 public export
-data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> Type where
-  Step : {n : _} -> {srcs : VectSource m n} -> {uc : _} ->
-         {finalRegs : VectValue n} ->
-         {l : _} -> {contSrcs' : VectSource l n} -> {immSrc, delaSrc, contImmSrc, contDelaSrc : _} ->
+data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> (ols : ListLoop n) -> Type where
+  Step : {srcs : VectSource m n} ->
+         {l : _} -> {remSrcs : VectSource l n} -> {contImmSrc, contDelaSrc : _} -> {r : _} -> {contSrcs' : VectSource r n} ->
          (bs : VectBool m) ->
-         (hasTrueBut : HasTrueBut bs immSrc) =>  -- if no immSrc, then must have any True bit
-         let extr : ((k' ** VectSource (S k') n), (l ** VectSource l n)); extr = extractAtMany bs @{hasTrueBut} srcs in
-         let merged : (Source n, Nat); merged = merge (snd $ append'' immSrc (snd $ fst extr)) uc in
-         LinearBlock (fst merged).registers finalRegs ->
-         Possible (snd $ snd extr) finalRegs contImmSrc contDelaSrc contSrcs' =>
-         Program contImmSrc contDelaSrc (snd $ append' delaSrc contSrcs') (snd merged) ->
-         Program immSrc delaSrc srcs uc
-  Finish : Program Nothing Nothing [] uc
-  FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc
+         Sink immSrc srcs uc bs curSrc remSrcs contUc =>
+         LinearBlock curSrc.registers finalRegs ->
+         Possible remSrcs finalRegs contImmSrc contDelaSrc contSrcs' =>
+         Program contImmSrc contDelaSrc (snd $ append' delaSrc contSrcs') contUc ols ->
+         Program immSrc delaSrc srcs uc ols
+  Finish : Program Nothing Nothing [] uc []
+  FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []
 
-test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 0
-test = Step [] (Assign 0 1 $ Finish) Finish
+test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 0 []
+test = Step [] @{SinkWithImmediate} (Assign 0 1 $ Finish) Finish
 
-test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0
-test1 = Step [] (Assign 0 1 $ Finish) Finish
+test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0 []
+test1 = Step [] @{SinkWithImmediate} (Assign 0 1 $ Finish) Finish
 

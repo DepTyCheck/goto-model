@@ -48,6 +48,15 @@ namespace Bool
     Here : HasTrue (True :: bs)
     There : HasTrue bs -> HasTrue (b :: bs)
 
+  public export
+  Uninhabited (HasTrue []) where
+    uninhabited _ impossible
+
+  public export
+  hasTrueIsSucc : {bs : VectBool n} -> HasTrue bs -> IsSucc n
+  hasTrueIsSucc {bs = True :: _} Here = ItIsSucc
+  hasTrueIsSucc {bs = _ :: _} (There _) = ItIsSucc
+
 namespace Nat
   public export
   data NatSum : Nat -> Nat -> Nat -> Type where

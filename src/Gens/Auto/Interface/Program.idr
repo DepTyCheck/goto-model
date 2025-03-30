@@ -3,10 +3,15 @@ module Gens.Auto.Interface.Program
 import public Gens.Auto.Interface.Common
 import public Spec.Program
 
+-- import Deriving.DepTyCheck.Gen
+
+-- %language ElabReflection
+
 public export
-genHasTrueBut : Fuel ->
-                {n, m : _} -> (msrc : MaybeSource n) ->
-                Gen MaybeEmpty (bs : VectBool m ** HasTrueBut bs msrc)
+genSink : Fuel ->
+          {m : _} -> {n : _} -> (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : _) ->
+          Gen MaybeEmpty (bs ** curSrc ** l ** remSrcs : VectSource l n ** contUc ** Sink immSrc srcs uc bs curSrc remSrcs contUc)
+-- %runElab deriveGenPrinter @{MainCoreDerivator @{LeastEffort}} $
 
 public export
 genLinearBlock : Fuel ->

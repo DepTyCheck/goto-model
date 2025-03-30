@@ -13,7 +13,7 @@ GenOrderTuning "ProduceOp".dataCon where
   isConstructor = itIsConstructor
   deriveFirst _ _ = [10, 11, 12]
 
-Gens.Auto.Interface.Program.genHasTrueBut = deriveGen
+Gens.Auto.Interface.Program.genSink = deriveGen
 Gens.Auto.Interface.Program.genLinearBlock = deriveGen
 Gens.Auto.Interface.Program.genPossible = deriveGen
 

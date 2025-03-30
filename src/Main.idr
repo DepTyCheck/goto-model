@@ -39,7 +39,7 @@ run = do
 
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..n]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGen' $ genProgram (limit f) (limit f) {n=3} @{genHasTrueBut} @{genLinearBlock} @{genPossible} Nothing Nothing [(Src [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)])] 2
+    test' <- unGen' $ genProgram (limit f) (limit f) {n=3} @{genSink} @{genLinearBlock} @{genPossible} Nothing Nothing [(Src [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)])] 2
     finishMoment <- lift $ liftIO $ clockTime clock
 
     let diff = timeDifference finishMoment startMoment

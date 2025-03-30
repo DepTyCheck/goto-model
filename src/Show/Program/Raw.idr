@@ -35,9 +35,12 @@ Show (VectBool {}) where
          else joinBy ", " [show n, rec]
 
 public export
-Show (Program {n = S n'} immSrc delaSrc srcs uc) where
-  show (Step bs @{hasTypeBut} linBlk @{possible} cont) = do
-    let pre = "Available: \{show $ length bs}, bs: \{show bs}"
+Show (Program {n = S n'} immSrc delaSrc srcs uc ols) where
+  show (Step bs @{sink} linBlk @{possible} cont) = do
+    let sinkStr : String; sinkStr = case sink of
+                                         SinkWithImmediate => "immediate sink"
+                                         SinkWithNothing => "just sink"
+    let pre = "Available: \{show $ length bs}, bs: \{show bs} (\{show sinkStr})"
     let post : String; post = case possible of
                                    ItIsPossibleToExit => "Exit"
                                    ItIsPossibleToJmp => "Jmp"
@@ -47,6 +50,6 @@ Show (Program {n = S n'} immSrc delaSrc srcs uc) where
     if rec == ""
        then ppBlk
        else joinBy "\n" [ppBlk, rec]
-  show Finish = ""
+  show Finish = "Finish"
   show FinishAll = "FinishAll"
 
