@@ -72,7 +72,6 @@ namespace Possible
   data Sink : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) ->
               (bs : VectBool m) ->
               {-merged-}Source n -> {l : _} -> {-remained srcs-}VectSource l n -> {-contUc-}Nat -> Type where
-    [search immSrc srcs uc bs]
     SinkWithImmediate : {m, n : _} ->
                         {src : Source n} -> {srcs : VectSource m n} -> {uc : _} ->
                         {bs : VectBool m} ->
@@ -108,28 +107,16 @@ namespace Possible
               CloseLoopDecision [] finalRegs ((L savedRegs savedSrcs savedUc gs initRegs @{areWinded}) :: ols)
 
   public export
-  data ErasedVectSource : Nat -> Type where
-    EVS : (l : Nat) -> VectSource l n -> ErasedVectSource n
-
-  public export
-  (.length) : ErasedVectSource n -> Nat
-  (.length) (EVS l srcs) = l
-
-  public export
-  (.sources) : (erasedSrcs : ErasedVectSource n) -> VectSource (erasedSrcs.length) n
-  (.sources) (EVS l srcs) = srcs
-
-  public export
   unwindContext : {n : Nat} ->
                   {l : Nat} -> (remSrcs : VectSource l n) -> (finalRegs' : VectValue n) -> (curUc : Nat) -> (curOls : ListLoop n) -> CloseLoopDecision remSrcs finalRegs' curOls ->
-                  ({-contSrcs'-}ErasedVectSource n, {-finalRegs-}VectValue n, {-contUc-}Nat, {-contOls-}ListLoop n)
+                  ({-contSrcs'-}(r ** VectSource r n), {-finalRegs-}VectValue n, {-contUc-}Nat, {-contOls-}ListLoop n)
   unwindContext remSrcs finalRegs' curUc curOls NoClose =
-    (EVS _ remSrcs, finalRegs', curUc, curOls)
+    ((_ ** remSrcs), finalRegs', curUc, curOls)
   unwindContext [] finalRegs' _ (L savedRegs savedSrcs savedUc gs initRegs @{areWinded} :: ols) DoClose = do
     let rec : ?; rec = unwind savedRegs savedUc gs initRegs finalRegs' @{areWinded}
     let finalRegs : ?; finalRegs = fst rec
     let contUc : ?; contUc = snd rec
-    (EVS _ savedSrcs, finalRegs, contUc, ols)
+    ((_ ** savedSrcs), finalRegs, contUc, ols)
 
   public export
   getLoopState : (curOls : ListLoop n) -> CloseLoopDecision remSrcs finalRegs' curOls -> MaybeBool
@@ -147,25 +134,25 @@ namespace Possible
 
   public export
   makeEdges : {mb : _} -> EdgeDecision mb -> {l : _} -> (srcs : VectSource l n) -> (finalRegs : VectValue n) ->
-              (MaybeSource n, MaybeSource n, ErasedVectSource n)
-  makeEdges {mb} (Exit @{notJustFalse}) srcs finalRegs = (Nothing, Nothing, EVS _ srcs)
+              (MaybeSource n, MaybeSource n, (r ** VectSource r n))
+  makeEdges {mb} (Exit @{notJustFalse}) srcs finalRegs = (Nothing, Nothing, (_ ** srcs))
   makeEdges {mb} Jmp srcs finalRegs = do
     case mb of
-         (Just True) => (Nothing, Nothing, EVS _ srcs)
-         _ => (Nothing, Nothing, EVS _ $ Src finalRegs :: srcs)
+         (Just True) => (Nothing, Nothing, (_ ** srcs))
+         _ => (Nothing, Nothing, (_ ** Src finalRegs :: srcs))
   makeEdges {mb} Condjmp srcs finalRegs = do
     case mb of
-         (Just True) => (Nothing, Nothing, EVS _ $ Src finalRegs :: srcs)
-         _ => (Just $ Src finalRegs, Just $ Src finalRegs, EVS _ srcs)
+         (Just True) => (Nothing, Nothing, (_ ** Src finalRegs :: srcs))
+         _ => (Just $ Src finalRegs, Just $ Src finalRegs, (_ ** srcs))
 
   public export
   makeEdges' : {mb : _} -> EdgeDecision mb -> {l : _} -> (srcs : VectSource l n) -> (finalRegs : VectValue n) ->
-               (ErasedVectSource n, MaybeSource n, MaybeSource n)
-  makeEdges' {mb} Exit srcs finalRegs = (EVS _ srcs, Nothing, Nothing)
-  makeEdges' {mb = Just True} Jmp srcs finalRegs = (EVS _ srcs, Nothing, Nothing)
-  makeEdges' {mb = _} Jmp srcs finalRegs = (EVS _ (Src finalRegs :: srcs), Nothing, Nothing)
-  makeEdges' {mb = Just True} Condjmp srcs finalRegs = (EVS _ (Src finalRegs :: srcs), Nothing, Nothing)
-  makeEdges' {mb = _} Condjmp srcs finalRegs = (EVS _ srcs, Just $ Src finalRegs, Just $ Src finalRegs)
+               ((r ** VectSource r n), MaybeSource n, MaybeSource n)
+  makeEdges' {mb} Exit srcs finalRegs = ((_ ** srcs), Nothing, Nothing)
+  makeEdges' {mb = Just True} Jmp srcs finalRegs = ((_ ** srcs), Nothing, Nothing)
+  makeEdges' {mb = _} Jmp srcs finalRegs = ((_ ** Src finalRegs :: srcs), Nothing, Nothing)
+  makeEdges' {mb = Just True} Condjmp srcs finalRegs = ((_ ** Src finalRegs :: srcs), Nothing, Nothing)
+  makeEdges' {mb = _} Condjmp srcs finalRegs = ((_ ** srcs), Just $ Src finalRegs, Just $ Src finalRegs)
 
 
 -- immediate source - is always taken
@@ -191,13 +178,17 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
          (linBlk : LinearBlock curSrc.registers finalRegs') ->
          So (isSuitable finalRegs' curOls) =>
          (closeDec : CloseLoopDecision remSrcs finalRegs' curOls) =>
-         let unwindedCtx : (ErasedVectSource n, VectValue n, Nat, ListLoop n); unwindedCtx = unwindContext {n=n} {l=r} remSrcs finalRegs' curUc curOls closeDec in
-         let loopState : ?; loopState = getLoopState curOls closeDec in
-         (edgeDec : EdgeDecision loopState) ->
-         let edges : ?; contCtx = makeEdges' {n=n} edgeDec {l=(fst unwindedCtx).length} (fst unwindedCtx).sources (fst $ snd unwindedCtx) in
+         let unwindedCtx : ((t' ** VectSource t' n), VectValue n, Nat, ListLoop n); unwindedCtx = unwindContext {n=n} {l=r} remSrcs finalRegs' curUc curOls closeDec in 
+         (edgeDec : EdgeDecision $ getLoopState curOls closeDec) ->
+         -- TODO: edges : ? doesn't work because of strange unresolved hole
+         let edges : ?; contCtx = makeEdges' edgeDec {l=fst $ fst unwindedCtx} (snd $ fst unwindedCtx) (fst $ snd unwindedCtx) in
              {-
-         Program (fst $ snd edges) (snd $ snd edges) (fst edges).sources (fst $ snd $ snd unwindedCtx) (snd $ snd $ snd unwindedCtx) ->
-         -}
+         let contImmSrc : (MaybeSource n); contImmSrc = fst edges in
+         let contDelaSrc : ?; contDelaSrc = fst $ snd edges in
+         let contSrcsDP : (t ** VectSource t n); contSrcsDP = snd $ snd edges in
+         let contSrcs : VectSource (fst contSrcsDP) n; contSrcs = snd contSrcsDP in
+             -}
+         Program (fst $ snd edges) (snd $ snd edges) (fst edges) (fst $ snd $ snd unwindedCtx) (snd $ snd $ snd unwindedCtx) ->
          Program immSrc delaSrc srcs uc ols
   Finish : Program Nothing Nothing [] uc []
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []
@@ -220,11 +211,11 @@ test_unwindedCtx = unwindContext [] [JustV $ Det $ RawI 1, JustV $ Det $ RawI 1]
 test_edgeDec : EdgeDecision $ getLoopState [] Program.test_closeDec
 test_edgeDec = Exit
 
-test_edges : (MaybeSource 2, MaybeSource 2, ErasedVectSource 2)
-test_edges = makeEdges test_edgeDec (fst test_unwindedCtx).sources (fst $ snd test_unwindedCtx)
+test_edges : (MaybeSource 2, MaybeSource 2, (t ** VectSource t 2))
+test_edges = makeEdges test_edgeDec (snd $ fst test_unwindedCtx) (fst $ snd test_unwindedCtx)
 
 test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 1 []
-test = Step [] @{SinkWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} @{NoClose} Exit -- $ Finish
+test = Step [] @{SinkWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} $ Finish
 
 {-
 test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0 []
