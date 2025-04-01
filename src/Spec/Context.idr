@@ -97,6 +97,7 @@ namespace Source
       of the loop. They must satisfy the guarantees, i.e. any GValue and GType are bijected with values from these free sources. Of course,
       they must be winded as the main context after)
       [Applies at the moment of source choice]
+         MaybeStartLoop mergedSrc remSrcs' mergedUc curSrc remSrcs curUc =>  -- TODO: I can remove these 3 arguments and take Nat as number of new loops
     - making a LinearBlock where there's no undet variable depending on self
     
     To finish a loop:
@@ -202,7 +203,8 @@ namespace Loop
       (::) : Guarantee -> VectGuarantee n -> VectGuarantee (S n)
 
     public export
-    data IsWindedWithGValue' : Value -> Value -> Nat -> Nat -> Type where
+    data IsWindedWithGValue' : Value -> Value -> Nat ->
+                               Nat -> Type where
       IsWindedUndet' : IsWindedWithGValue' (JustV {vTy} {isDet = False} vExpr) (JustV $ Undet vTy uc) uc (S uc)
       IsWindedDet' : IsWindedWithGValue' (JustV {isDet = True} vExpr) (JustV vExpr) uc uc
 
@@ -215,15 +217,17 @@ namespace Loop
       IsWindedGNothing' : IsWinded' v GNothing Unkwn uc uc
 
     public export
-    data AreWinded' : VectValue n -> VectGuarantee n -> VectValue n -> Nat -> Type where
-      AreWindedBase' : AreWinded' [] [] [] uc
-      AreWindedStep' : AreWinded' savedRegs gs initRegs uc' ->
-                       IsWinded' sr g ir uc uc' =>
-                       AreWinded' (sr :: savedRegs) (g :: gs) (ir :: initRegs) uc
+    data AreWinded' : VectValue n -> VectGuarantee n ->
+                      VectValue n -> {-curUc-}Nat -> {-initUc-}Nat -> Type where
+      AreWindedBase' : AreWinded' [] [] [] uc uc
+      AreWindedStep' : AreWinded' savedRegs gs initRegs curUc' uc ->
+                       IsWinded' sr g ir curUc curUc' =>
+                       AreWinded' (sr :: savedRegs) (g :: gs) (ir :: initRegs) curUc uc
 
     public export
-    data AreWinded : VectValue n -> VectGuarantee n -> VectValue n -> Type where
-      TheyAreWinded : AreWinded' savedRegs gs initRegs 0 => AreWinded savedRegs gs initRegs
+    data AreWinded : (savedRegs : VectValue n) -> (gs : VectGuarantee n) ->
+                     {-initRegs-}VectValue n -> {-initUc-}Nat -> Type where
+      TheyAreWinded : AreWinded' savedRegs gs initRegs 0 initUc => AreWinded savedRegs gs initRegs initUc
 
     -- TODO: causes fake filtration. CanUnwind must be built upon IsWinded',
     -- but Idris cannot handle it and further usage causes fighting with compiler bugs
@@ -244,8 +248,8 @@ namespace Loop
   -- For simplicity, we do not merge any free sources or sources from outer loops during the current loop
   public export
   data Loop : Nat -> Type where
-    L : (savedRegs : VectValue n) -> (savedUc : Nat)-> (gs : VectGuarantee n) -> (initRegs : VectValue n) ->
-        AreWinded savedRegs gs initRegs =>
+    L : (savedRegs : VectValue n) -> {m : _} -> (savedSrcs : VectSource m n) -> (savedUc : Nat)-> (gs : VectGuarantee n) -> (initRegs : VectValue n) ->
+        AreWinded savedRegs gs initRegs initUc =>
         Loop n
 
   %name Loop l
@@ -277,7 +281,7 @@ namespace Loop
               (Op _ _ _) => state $ \uc => (S uc, JustV $ Undet vTy uc)
        else state $ \uc => (S uc, JustV $ Undet vTy uc)
   unwindValue {vTy} {finalIsDet = True} savedExpr initIdx finalExpr = pure $ JustV finalExpr
-    
+
   public export
   introduceValue : (fr : Value) -> State Nat Value
   introduceValue Unkwn = pure Unkwn
@@ -287,7 +291,7 @@ namespace Loop
   public export
   unwind' : {n : _} ->
             (savedRegs : _) -> (gs : _) -> (initRegs, finalRegs : _) ->
-            AreWinded' {n} savedRegs gs initRegs uc => CanUnwindAll {n} initRegs gs finalRegs =>
+            AreWinded' {n} savedRegs gs initRegs curUc initUc => CanUnwindAll {n} initRegs gs finalRegs =>
             State Nat $ VectValue n
   unwind' [] [] [] [] @{AreWindedBase'} @{CanUnwindAllBase} = pure []
   unwind' (sr :: savedRegs) (GValue :: gs) (ir :: initRegs) (ir :: finalRegs)
@@ -314,7 +318,7 @@ namespace Loop
   public export
   unwind : {n : _} ->
            (savedRegs : _) -> (savedUc : Nat) -> (gs : _) -> (initRegs, finalRegs : _) ->
-           AreWinded {n} savedRegs gs initRegs => CanUnwindAll {n} initRegs gs finalRegs =>
-           VectValue n
-  unwind savedRegs savedUc gs initRegs finalRegs @{TheyAreWinded @{areWinded'}} = evalState savedUc $ unwind' savedRegs gs initRegs finalRegs @{areWinded'}
+           AreWinded {n} savedRegs gs initRegs initUc => CanUnwindAll {n} initRegs gs finalRegs =>
+           (VectValue n, Nat)
+  unwind savedRegs savedUc gs initRegs finalRegs @{TheyAreWinded @{areWinded'}} = swap $ runState savedUc $ unwind' savedRegs gs initRegs finalRegs @{areWinded'}
 
