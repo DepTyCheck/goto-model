@@ -89,7 +89,9 @@ namespace Possible
   public export
   data StartLoops : (src : Source n) -> (remSrcs' : VectSource l n) -> (uc : Nat) -> (ols : ListLoop n) ->
                     {-initSrc-}Source n -> {r : _} -> {-remSrcs-}VectSource r n -> {-initUc-}Nat -> {-newOls-}ListLoop n -> Type where
+    [search src remSrcs' uc ols]
     NoNewLoop : StartLoops src remSrcs' uc ols src remSrcs' uc ols
+    -- TODO: allow many loops
     OneNewLoop : (areWinded : AreWinded src.registers gs initRegs initUc) =>
                  StartLoops src remSrcs' uc ols (Src initRegs) [] initUc [L src.registers remSrcs' uc gs initRegs @{areWinded}]
 
@@ -145,16 +147,6 @@ namespace Possible
          (Just True) => (Nothing, Nothing, (_ ** Src finalRegs :: srcs))
          _ => (Just $ Src finalRegs, Just $ Src finalRegs, (_ ** srcs))
 
-  public export
-  makeEdges' : {mb : _} -> EdgeDecision mb -> {l : _} -> (srcs : VectSource l n) -> (finalRegs : VectValue n) ->
-               ((r ** VectSource r n), MaybeSource n, MaybeSource n)
-  makeEdges' {mb} Exit srcs finalRegs = ((_ ** srcs), Nothing, Nothing)
-  makeEdges' {mb = Just True} Jmp srcs finalRegs = ((_ ** srcs), Nothing, Nothing)
-  makeEdges' {mb = _} Jmp srcs finalRegs = ((_ ** Src finalRegs :: srcs), Nothing, Nothing)
-  makeEdges' {mb = Just True} Condjmp srcs finalRegs = ((_ ** Src finalRegs :: srcs), Nothing, Nothing)
-  makeEdges' {mb = _} Condjmp srcs finalRegs = ((_ ** srcs), Just $ Src finalRegs, Just $ Src finalRegs)
-
-
 -- immediate source - is always taken
 -- delayed source - is always avoided for 1 step
 -- immediate source is useful because I'll be able to control loops later
@@ -165,59 +157,44 @@ public export
 data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) ->
                (uc : Nat) ->  -- count of undetermined Values, i.e. (JustV $ Undet ...)
                (ols : ListLoop n) -> Type where
-  Step : {n : _} -> {m : _} ->
+  Step : {n : _} -> {0 m : _} ->
          {immSrc, delaSrc : _} -> {srcs : VectSource m n} ->
-         {uc : _} ->
-         {ols : _} ->
-         {mergedSrc : _} -> {l : _} -> {remSrcs'' : VectSource l n} ->
-         {curSrc : _} -> {r : _} -> {remSrcs : VectSource r n} -> {curUc : _} -> {curOls : _} ->
+         {0 uc : _} ->
+         {0 ols : _} ->
+         {0 mergedSrc : _} -> {l : _} -> {remSrcs'' : VectSource l n} -> {0 mergedUc : _} ->
+         {0 curSrc : _} -> {r : _} -> {remSrcs : VectSource r n} -> {curUc : _} -> {curOls : _} ->
          {finalRegs' : _} ->
          (bs : VectBool m) ->
          Sink immSrc srcs uc bs mergedSrc remSrcs'' mergedUc =>
-         StartLoops mergedSrc (snd $ append' delaSrc remSrcs'') mergedUc ols curSrc remSrcs curUc curOls =>
+         let remSrcs' : ?; remSrcs' = snd $ append' delaSrc remSrcs'' in
+         StartLoops mergedSrc remSrcs' mergedUc ols curSrc remSrcs curUc curOls =>
          (linBlk : LinearBlock curSrc.registers finalRegs') ->
          So (isSuitable finalRegs' curOls) =>
          (closeDec : CloseLoopDecision remSrcs finalRegs' curOls) =>
-         let unwindedCtx : ((t' ** VectSource t' n), VectValue n, Nat, ListLoop n); unwindedCtx = unwindContext {n=n} {l=r} remSrcs finalRegs' curUc curOls closeDec in 
+         let unwindedCtx : ?; unwindedCtx = unwindContext remSrcs finalRegs' curUc curOls closeDec in 
+         let contSrcs' : ?; contSrcs' = snd $ fst unwindedCtx in
+         let finalRegs : ?; finalRegs = fst $ snd unwindedCtx in
+         let contUc : ?; contUc = fst $ snd $ snd unwindedCtx in
+         let contOls : ?; contOls = snd $ snd $ snd unwindedCtx in
          (edgeDec : EdgeDecision $ getLoopState curOls closeDec) ->
-         -- TODO: edges : ? doesn't work because of strange unresolved hole
-         let edges : ?; contCtx = makeEdges' edgeDec {l=fst $ fst unwindedCtx} (snd $ fst unwindedCtx) (fst $ snd unwindedCtx) in
-             {-
-         let contImmSrc : (MaybeSource n); contImmSrc = fst edges in
+         let edges : ?; edges = makeEdges edgeDec contSrcs' finalRegs in
+         let contImmSrc : ?; contImmSrc = fst edges in
          let contDelaSrc : ?; contDelaSrc = fst $ snd edges in
-         let contSrcsDP : (t ** VectSource t n); contSrcsDP = snd $ snd edges in
-         let contSrcs : VectSource (fst contSrcsDP) n; contSrcs = snd contSrcsDP in
-             -}
-         Program (fst $ snd edges) (snd $ snd edges) (fst edges) (fst $ snd $ snd unwindedCtx) (snd $ snd $ snd unwindedCtx) ->
+         let contSrcs : ?; contSrcs = snd $ snd $ snd edges in
+         Program contImmSrc contDelaSrc contSrcs contUc contOls ->
          Program immSrc delaSrc srcs uc ols
   Finish : Program Nothing Nothing [] uc []
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []
 
-test_immSrc : MaybeSource 2
-test_immSrc = (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1])
-
-test_sink : Sink Program.test_immSrc [] 1 [] (Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) [] 1
-test_sink = SinkWithImmediate
-
-test_loops : StartLoops (Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) (snd $ append' Nothing []) 1 [] (Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) [] 1 []
-test_loops = NoNewLoop
-
-test_closeDec : CloseLoopDecision [] [JustV $ Det $ RawI 1, JustV $ Det $ RawI 1] []
-test_closeDec = NoClose
-
-test_unwindedCtx : ?
-test_unwindedCtx = unwindContext [] [JustV $ Det $ RawI 1, JustV $ Det $ RawI 1] 1 [] Program.test_closeDec
-
-test_edgeDec : EdgeDecision $ getLoopState [] Program.test_closeDec
-test_edgeDec = Exit
-
-test_edges : (MaybeSource 2, MaybeSource 2, (t ** VectSource t 2))
-test_edges = makeEdges test_edgeDec (snd $ fst test_unwindedCtx) (fst $ snd test_unwindedCtx)
-
 test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 1 []
 test = Step [] @{SinkWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} $ Finish
 
-{-
 test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0 []
-test1 = Step [] @{SinkWithImmediate} (Assign 0 1 $ Finish) @{ItIsPossibleToExit} Finish
+test1 = Step [] @{SinkWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} Finish
 
+test2 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 2 []
+test2 = Step [] @{SinkWithImmediate} @{OneNewLoop {gs=[GType, GType, GValue]} @{TheyAreWinded @{AreWindedStep' $ AreWindedStep' @{IsWindedGType'} $ AreWindedStep' @{IsWindedGValue'} $ AreWindedBase'}}} (
+          Assign 1 0 $
+          RegOp Add 0 @{ProduceOp @{HasTypeHere} @{ItIsAddVTypes} @{HasTypeThere $ HasTypeThere $ HasTypeHere}} $
+          Finish
+          ) @{Oh} (Exit) @{DoClose} Finish

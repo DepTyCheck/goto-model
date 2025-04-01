@@ -203,13 +203,15 @@ namespace Loop
       (::) : Guarantee -> VectGuarantee n -> VectGuarantee (S n)
 
     public export
-    data IsWindedWithGValue' : Value -> Value -> Nat ->
+    data IsWindedWithGValue' : (sr : Value) -> Value -> Nat ->
                                Nat -> Type where
+      [search sr]
       IsWindedUndet' : IsWindedWithGValue' (JustV {vTy} {isDet = False} vExpr) (JustV $ Undet vTy uc) uc (S uc)
       IsWindedDet' : IsWindedWithGValue' (JustV {isDet = True} vExpr) (JustV vExpr) uc uc
 
     public export
-    data IsWinded' : Value -> Guarantee -> Value -> Nat -> Nat -> Type where
+    data IsWinded' : (sr : Value) -> (g : Guarantee) -> Value -> Nat -> Nat -> Type where
+      [search sr g]
       -- TODO: will probably cause strange filtration
       IsWindedGValue' : IsWindedWithGValue' sr ir uc uc' => IsWinded' sr GValue ir uc uc'
       -- TODO: constants may also be not saved completely
@@ -217,8 +219,9 @@ namespace Loop
       IsWindedGNothing' : IsWinded' v GNothing Unkwn uc uc
 
     public export
-    data AreWinded' : VectValue n -> VectGuarantee n ->
-                      VectValue n -> {-curUc-}Nat -> {-initUc-}Nat -> Type where
+    data AreWinded' : (savedRegs : VectValue n) -> (gs : VectGuarantee n) ->
+                      {-initRegs-}VectValue n -> {-curUc-}Nat -> {-initUc-}Nat -> Type where
+      [search savedRegs gs]
       AreWindedBase' : AreWinded' [] [] [] uc uc
       AreWindedStep' : AreWinded' savedRegs gs initRegs curUc' uc ->
                        IsWinded' sr g ir curUc curUc' =>
@@ -227,6 +230,7 @@ namespace Loop
     public export
     data AreWinded : (savedRegs : VectValue n) -> (gs : VectGuarantee n) ->
                      {-initRegs-}VectValue n -> {-initUc-}Nat -> Type where
+      [search savedRegs gs]
       TheyAreWinded : AreWinded' savedRegs gs initRegs 0 initUc => AreWinded savedRegs gs initRegs initUc
 
     -- TODO: causes fake filtration. CanUnwind must be built upon IsWinded',
