@@ -73,26 +73,47 @@ namespace Possible
     SinkIsValidWithImmediate : SinkIsValid (Just src) srcs bs
     SinkIsValidWithNothing : HasTrue bs => SinkIsValid Nothing (src :: srcs) bs
 
+  namespace Sink
+    public export
+    record Result (n : Nat) where
+      constructor R
+      mergedSrc : Source n
+      remainedSrcsLen : Nat
+      remainedSrcs : VectSource remainedSrcsLen n
+      mergedUc : Nat
+
   public export
   sink : {n : _} -> (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> (bs : VectBool m) -> SinkIsValid immSrc srcs bs =>
-         ({-mergedSrc-}Source n, {-remSrcs''-}(l ** VectSource l n), {-mergedUc-}Nat)
+         Sink.Result n
   sink (Just src) srcs uc bs @{SinkIsValidWithImmediate} = do
     let extr : ?; extr = extractAtMany' bs srcs
     let merged : ?; merged = merge (src :: (snd $ fst extr)) uc
-    (fst merged, snd extr, snd merged)
+    R (fst merged) _ (snd $ snd extr) (snd merged)
   sink Nothing (src :: srcs) uc bs @{SinkIsValidWithNothing} = do
     let extr : ?; extr = extractAtMany bs (src :: srcs)
     let merged : ?; merged = merge (snd $ fst extr) uc
-    (fst merged, snd extr, snd merged)
+    R (fst merged) _ (snd $ snd extr) (snd merged)
 
   public export
-  data StartLoops : (src : Source n) -> (remSrcs' : VectSource l n) -> (uc : Nat) -> (ols : ListLoop n) ->
-                    {-initSrc-}Source n -> {r : _} -> {-remSrcs-}VectSource r n -> {-initUc-}Nat -> {-newOls-}ListLoop n -> Type where
-    [search src remSrcs' uc ols]
-    NoNewLoop : StartLoops src remSrcs' uc ols src remSrcs' uc ols
-    -- TODO: allow many loops
-    OneNewLoop : (areWinded : AreWinded src.registers gs initRegs initUc) =>
-                 StartLoops src remSrcs' uc ols (Src initRegs) [] initUc [L src.registers remSrcs' uc gs initRegs @{areWinded}]
+  data LoopDecision : (src : Source n) -> (ols : ListLoop n) -> Type where
+    NoNewLoop : LoopDecision src ols
+    OneNewLoop : {gs : _} -> {initRegs : _} -> {initUc : _} -> AreWinded src.registers gs initRegs initUc => LoopDecision src []
+
+  namespace Wind
+    public export
+    record Result (n : Nat) where
+      constructor R
+      currentSrc : Source n
+      remainedSrcsLen : Nat
+      remainedSrcs : VectSource remainedSrcsLen n
+      currentUc : Nat
+      currentOls : ListLoop n
+
+  public export
+  startLoops : (src : Source n) -> {l : _} -> (remSrcs' : VectSource l n) -> (uc : Nat) -> (ols : ListLoop n) -> (loopDec : LoopDecision src ols) =>
+               Wind.Result n
+  startLoops src remSrcs' uc ols @{NoNewLoop} = R src _ remSrcs' uc ols
+  startLoops src remSrcs' uc [] @{OneNewLoop {gs} {initRegs} {initUc}} = R (Src initRegs) _ [] initUc [L src.registers remSrcs' uc gs initRegs]
 
   public export
   isSuitable : (finalRegs : VectValue n) -> ListLoop n -> Bool
@@ -109,17 +130,25 @@ namespace Possible
 
               CloseLoopDecision [] finalRegs ((L savedRegs savedSrcs savedUc gs initRegs @{areWinded}) :: ols)
 
+  namespace Unwind
+    public export
+    record Result (n : Nat) where
+      constructor R
+      contSrcsLen' : Nat
+      contSrcs' : VectSource contSrcsLen' n
+      finalRegs : VectValue n
+      contUc : Nat
+      contOls : ListLoop n
+
   public export
   unwindContext : {n : Nat} ->
                   {l : Nat} -> (remSrcs : VectSource l n) -> (finalRegs' : VectValue n) -> (curUc : Nat) -> (curOls : ListLoop n) -> CloseLoopDecision remSrcs finalRegs' curOls ->
-                  ({-contSrcs'-}(r ** VectSource r n), {-finalRegs-}VectValue n, {-contUc-}Nat, {-contOls-}ListLoop n)
+                  Unwind.Result n
   unwindContext remSrcs finalRegs' curUc curOls NoClose =
-    ((_ ** remSrcs), finalRegs', curUc, curOls)
+    R _ remSrcs finalRegs' curUc curOls
   unwindContext [] finalRegs' _ (L savedRegs savedSrcs savedUc gs initRegs @{areWinded} :: ols) DoClose = do
     let rec : ?; rec = unwind savedRegs savedUc gs initRegs finalRegs' @{areWinded}
-    let finalRegs : ?; finalRegs = fst rec
-    let contUc : ?; contUc = snd rec
-    ((_ ** savedSrcs), finalRegs, contUc, ols)
+    R _ savedSrcs (fst rec) (snd rec) ols
 
   public export
   getLoopState : (curOls : ListLoop n) -> CloseLoopDecision remSrcs finalRegs' curOls -> MaybeBool
@@ -135,18 +164,27 @@ namespace Possible
 
   %name EdgeDecision edgeDec
 
+  namespace Edges
+    public export
+    record Result (n : Nat) where
+      constructor R
+      contImmSrc : MaybeSource n
+      contDelaSrc : MaybeSource n
+      contSrcsLen : Nat
+      contSrcs : VectSource contSrcsLen n
+
   public export
   makeEdges : {mb : _} -> EdgeDecision mb -> {l : _} -> (srcs : VectSource l n) -> (finalRegs : VectValue n) ->
-              (MaybeSource n, MaybeSource n, (r ** VectSource r n))
-  makeEdges {mb} (Exit @{notJustFalse}) srcs finalRegs = (Nothing, Nothing, (_ ** srcs))
+              Edges.Result n
+  makeEdges {mb} (Exit @{notJustFalse}) srcs finalRegs = R Nothing Nothing _ srcs
   makeEdges {mb} Jmp srcs finalRegs = do
     case mb of
-         (Just True) => (Nothing, Nothing, (_ ** srcs))
-         _ => (Nothing, Nothing, (_ ** Src finalRegs :: srcs))
+         (Just True) => R Nothing Nothing _ srcs
+         _ => R Nothing Nothing _ (Src finalRegs :: srcs)
   makeEdges {mb} Condjmp srcs finalRegs = do
     case mb of
-         (Just True) => (Nothing, Nothing, (_ ** Src finalRegs :: srcs))
-         _ => (Just $ Src finalRegs, Just $ Src finalRegs, (_ ** srcs))
+         (Just True) => R Nothing Nothing _ (Src finalRegs :: srcs)
+         _ => R (Just $ Src finalRegs) (Just $ Src finalRegs) _ srcs
 
 -- immediate source - is always taken
 -- delayed source - is always avoided for 1 step
@@ -161,31 +199,21 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
   Step : {n : _} -> {0 m : _} ->
          {immSrc, delaSrc : _} -> {srcs : VectSource m n} ->
          {uc : _} ->
-         {0 ols : _} ->
-         {0 curSrc : _} -> {r : _} -> {remSrcs : VectSource r n} -> {curUc : _} -> {curOls : _} ->
+         {ols : _} ->
          {finalRegs' : _} ->
          (bs : VectBool m) ->
          (sinkPrf : SinkIsValid immSrc srcs bs) =>
-         let sankCtx : ?; sankCtx = sink immSrc srcs uc bs @{sinkPrf} in
-         let mergedSrc : ?; mergedSrc = fst sankCtx in
-         let remSrcs'' : ?; remSrcs'' = snd $ fst $ snd sankCtx in
-         let mergedUc : ?; mergedUc = snd $ snd sankCtx in
-         let remSrcs' : ?; remSrcs' = snd $ append' delaSrc remSrcs'' in
-         StartLoops mergedSrc remSrcs' mergedUc ols curSrc remSrcs curUc curOls =>
-         (linBlk : LinearBlock curSrc.registers finalRegs') ->
-         So (isSuitable finalRegs' curOls) =>
-         (closeDec : CloseLoopDecision remSrcs finalRegs' curOls) =>
-         let unwindedCtx : ?; unwindedCtx = unwindContext remSrcs finalRegs' curUc curOls closeDec in 
-         let contSrcs' : ?; contSrcs' = snd $ fst unwindedCtx in
-         let finalRegs : ?; finalRegs = fst $ snd unwindedCtx in
-         let contUc : ?; contUc = fst $ snd $ snd unwindedCtx in
-         let contOls : ?; contOls = snd $ snd $ snd unwindedCtx in
-         (edgeDec : EdgeDecision $ getLoopState curOls closeDec) ->
-         let edges : ?; edges = makeEdges edgeDec contSrcs' finalRegs in
-         let contImmSrc : ?; contImmSrc = fst edges in
-         let contDelaSrc : ?; contDelaSrc = fst $ snd edges in
-         let contSrcs : ?; contSrcs = snd $ snd $ snd edges in
-         Program contImmSrc contDelaSrc contSrcs contUc contOls ->
+         let sinkR : ?; sinkR = sink immSrc srcs uc bs @{sinkPrf} in
+         let remSrcs' : ?; remSrcs' = snd $ append' delaSrc sinkR.remainedSrcs in
+         (loopDec : LoopDecision sinkR.mergedSrc ols) =>
+         let windR : ?; windR = startLoops sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
+         (linBlk : LinearBlock windR.currentSrc.registers finalRegs') ->
+         So (isSuitable finalRegs' windR.currentOls) =>
+         (closeDec : CloseLoopDecision windR.remainedSrcs finalRegs' windR.currentOls) =>
+         let unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec in 
+         (edgeDec : EdgeDecision $ getLoopState windR.currentOls closeDec) ->
+         let edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
+         Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs unwindR.contUc unwindR.contOls ->
          Program immSrc delaSrc srcs uc ols
   Finish : Program Nothing Nothing [] uc []
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []

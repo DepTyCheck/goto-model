@@ -3,10 +3,12 @@ module Gens.Auto.Interface.Program
 import public Gens.Auto.Interface.Common
 import public Spec.Program
 
--- import Deriving.DepTyCheck.Gen
 
--- %language ElabReflection
-
+public export
+genProgram : Fuel ->
+             {m, n : Nat} -> (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> (ols : ListLoop n) ->
+             Gen MaybeEmpty $ Program immSrc delaSrc srcs uc ols
+{-
 public export
 genSink : Fuel ->
           {m : _} -> {n : _} -> (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : _) ->
