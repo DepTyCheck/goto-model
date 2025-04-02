@@ -69,22 +69,21 @@ namespace Possible
     hasUndetDependsOnlyOnSelf' initRegs @{areWinded'} finalRegs @{canUnwindAll}
 
   public export
-  data Sink : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) ->
-              (bs : VectBool m) ->
-              {-merged-}Source n -> {l : _} -> {-remained srcs-}VectSource l n -> {-contUc-}Nat -> Type where
-    SinkWithImmediate : {m, n : _} ->
-                        {src : Source n} -> {srcs : VectSource m n} -> {uc : _} ->
-                        {bs : VectBool m} ->
-                        let extr : ((k ** VectSource k n), (l ** VectSource l n)); extr = extractAtMany' bs srcs in
-                        let merged : (Source n, Nat); merged = merge @{ItIsSucc} (src :: (snd $ fst extr)) uc in
-                        Sink {m} (Just $ src) srcs uc bs (fst merged) (snd $ snd extr) (snd merged)
-    SinkWithNothing : {m', n : _} ->
-                      {src : Source n} -> {srcs : VectSource m' n} -> {uc : _} ->
-                      {bs : VectBool $ S m'} ->
-                      HasTrue bs =>
-                      let extr : ((k' ** VectSource (S k') n), (l ** VectSource l n)); extr = extractAtMany bs (src :: srcs) in
-                      let merged : (Source n, Nat); merged = merge @{ItIsSucc} (snd $ fst extr) uc in
-                      Sink {m = S m'} Nothing (src :: srcs) uc bs (fst merged) (snd $ snd extr) (snd merged)
+  data SinkIsValid : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (bs : VectBool m) -> Type where
+    SinkIsValidWithImmediate : SinkIsValid (Just src) srcs bs
+    SinkIsValidWithNothing : HasTrue bs => SinkIsValid Nothing (src :: srcs) bs
+
+  public export
+  sink : {n : _} -> (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> (bs : VectBool m) -> SinkIsValid immSrc srcs bs =>
+         ({-mergedSrc-}Source n, {-remSrcs''-}(l ** VectSource l n), {-mergedUc-}Nat)
+  sink (Just src) srcs uc bs @{SinkIsValidWithImmediate} = do
+    let extr : ?; extr = extractAtMany' bs srcs
+    let merged : ?; merged = merge (src :: (snd $ fst extr)) uc
+    (fst merged, snd extr, snd merged)
+  sink Nothing (src :: srcs) uc bs @{SinkIsValidWithNothing} = do
+    let extr : ?; extr = extractAtMany bs (src :: srcs)
+    let merged : ?; merged = merge (snd $ fst extr) uc
+    (fst merged, snd extr, snd merged)
 
   public export
   data StartLoops : (src : Source n) -> (remSrcs' : VectSource l n) -> (uc : Nat) -> (ols : ListLoop n) ->
@@ -105,7 +104,9 @@ namespace Possible
     NoClose : CloseLoopDecision remSrcs finalRegs ols
     -- TODO: remSrcs may not be [], I just don't want to unwind them now
     DoClose : (canUnwindAll : CanUnwindAll initRegs gs finalRegs) =>
+              -- TODO: not enough, need to check for a particular expression
               So (hasUndetDependsOnlyOnSelf initRegs @{areWinded} finalRegs @{canUnwindAll}) =>
+
               CloseLoopDecision [] finalRegs ((L savedRegs savedSrcs savedUc gs initRegs @{areWinded}) :: ols)
 
   public export
@@ -159,13 +160,16 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
                (ols : ListLoop n) -> Type where
   Step : {n : _} -> {0 m : _} ->
          {immSrc, delaSrc : _} -> {srcs : VectSource m n} ->
-         {0 uc : _} ->
+         {uc : _} ->
          {0 ols : _} ->
-         {0 mergedSrc : _} -> {l : _} -> {remSrcs'' : VectSource l n} -> {0 mergedUc : _} ->
          {0 curSrc : _} -> {r : _} -> {remSrcs : VectSource r n} -> {curUc : _} -> {curOls : _} ->
          {finalRegs' : _} ->
          (bs : VectBool m) ->
-         Sink immSrc srcs uc bs mergedSrc remSrcs'' mergedUc =>
+         (sinkPrf : SinkIsValid immSrc srcs bs) =>
+         let sankCtx : ?; sankCtx = sink immSrc srcs uc bs @{sinkPrf} in
+         let mergedSrc : ?; mergedSrc = fst sankCtx in
+         let remSrcs'' : ?; remSrcs'' = snd $ fst $ snd sankCtx in
+         let mergedUc : ?; mergedUc = snd $ snd sankCtx in
          let remSrcs' : ?; remSrcs' = snd $ append' delaSrc remSrcs'' in
          StartLoops mergedSrc remSrcs' mergedUc ols curSrc remSrcs curUc curOls =>
          (linBlk : LinearBlock curSrc.registers finalRegs') ->
@@ -187,13 +191,13 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []
 
 test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 1 []
-test = Step [] @{SinkWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} $ Finish
+test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} $ Finish
 
 test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0 []
-test1 = Step [] @{SinkWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} Finish
+test1 = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} Finish
 
 test2 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 2 []
-test2 = Step [] @{SinkWithImmediate} @{OneNewLoop {gs=[GType, GType, GValue]} @{TheyAreWinded @{AreWindedStep' $ AreWindedStep' @{IsWindedGType'} $ AreWindedStep' @{IsWindedGValue'} $ AreWindedBase'}}} (
+test2 = Step [] @{SinkIsValidWithImmediate} @{OneNewLoop {gs=[GType, GType, GValue]} @{TheyAreWinded @{AreWindedStep' $ AreWindedStep' @{IsWindedGType'} $ AreWindedStep' @{IsWindedGValue'} $ AreWindedBase'}}} (
           Assign 1 0 $
           RegOp Add 0 @{ProduceOp @{HasTypeHere} @{ItIsAddVTypes} @{HasTypeThere $ HasTypeThere $ HasTypeHere}} $
           Finish
