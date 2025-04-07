@@ -17,6 +17,14 @@ GenOrderTuning "Step".dataCon where
   isConstructor = itIsConstructor
   deriveFirst _ _ = [9, 10, 11, 12, 13, 14]
 
+GenOrderTuning "CanUnwindAllStep".dataCon where
+  isConstructor = itIsConstructor
+  deriveFirst _ _ = [8, 7]
+
+GenOrderTuning "AreWindedStep'".dataCon where
+  isConstructor = itIsConstructor
+  deriveFirst _ _ = [11, 10]
+
 Gens.Auto.Interface.Program.genProgram = deriveGen
 
 {-

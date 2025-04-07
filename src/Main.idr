@@ -14,19 +14,16 @@ import System.Clock
 import System.Random.Pure.StdGen
 
 import Test.DepTyCheck.Gen
-import Show.Program.Asm
--- import Gens.Auto.Derivation
+import Test.DepTyCheck.Gen.Coverage
+import Show.Program.Raw
 import Gens.Auto.Derivation.Program
-import Gens.Manual.Program
+import Main.LabelCollector
 
 
 %ambiguity_depth 1003
 
 getNat : HasIO io => io Nat
 getNat = stringToNatOrZ <$> getLine
-
-fromVE : {mVTy : _} -> {isDet : _} -> VExpr mVTy isDet -> Value
-fromVE vExpr = JustV $ vExpr
 
 covering
 run : HasIO io => MonadError String io => io ()
@@ -37,10 +34,16 @@ run = do
   let randomGen = mkStdGen seed
   let clock : ?; clock = Monotonic
 
+  ch <- makeChannel {a=Message}
+  let cgi = initCoverageInfo'' [`{Program}]
+  h <- LabelCollector.start ch cgi
+
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..n]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGen' $ genProgram (limit f) (limit f) {n=3} @{genSink} @{genLinearBlock} @{genPossible} Nothing Nothing [(Src [fromVE (Undet I 0), fromVE (Undet I 1), fromVE (Det $ RawI 1)])] 2
+    test' <- unGenLC h $ genProgram (limit f) {n=3} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1)]] 2 []
     finishMoment <- lift $ liftIO $ clockTime clock
+
+    when (k < n) $ LabelCollector.divide h
 
     let diff = timeDifference finishMoment startMoment
     let diff_str = showTime 5 5 diff
@@ -49,12 +52,14 @@ run = do
 
     case test' of
          (Just test) => do
-           putStrLn "Successful"
-           putStrLn $ show test
+           putStrLn "Successful\n"
+           putStrLn "\{show test}\n"
          Nothing => do
            putStrLn "Failed"
+
+  LabelCollector.stop h
 
 
 covering
 main : IO ()
-main = {-putStr (show test2) -} runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure
+main = runEitherT {m = IO} run >>= either (die . (++) "Error: ") pure

@@ -36,17 +36,20 @@ Show (VectBool {}) where
 
 public export
 Show (Program {n = S n'} immSrc delaSrc srcs uc ols) where
-  show (Step bs @{sink} linBlk @{possible} cont) = do
+  show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec cont) = do
     let sinkStr : String; sinkStr = case sink of
-                                         SinkWithImmediate => "immediate sink"
-                                         SinkWithNothing => "just sink"
-    let pre = "Available: \{show $ length bs}, bs: \{show bs} (\{show sinkStr})"
-    let post : String; post = case possible of
-                                   ItIsPossibleToExit => "Exit"
-                                   ItIsPossibleToJmp => "Jmp"
-                                   ItIsPossibleToCondjmp => "Condjmp"
-    let ppBlk = joinBy "\n" [pre, show linBlk, post]
-    let rec = show cont
+                                         SinkIsValidWithImmediate => "immediate sink"
+                                         SinkIsValidWithNothing => "just sink"
+    let loopStr : String; loopStr = case loopDec of
+                                         NoNewLoop => "no loop"
+                                         -- OneNewLoop => "starts loop"
+    let pre = "Available: \{show $ length bs}, bs: \{show bs} (\{sinkStr}, \{loopStr})"
+    let post : String; post = case edgeDec of
+                                   Exit => "Exit"
+                                   Jmp => "Jmp"
+                                   Condjmp => "Condjmp"
+    let ppBlk : ?; ppBlk = joinBy "\n" [pre, show linBlk, post]
+    let rec : ?; rec = show cont
     if rec == ""
        then ppBlk
        else joinBy "\n" [ppBlk, rec]

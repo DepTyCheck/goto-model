@@ -97,7 +97,7 @@ namespace Possible
   public export
   data LoopDecision : (src : Source n) -> (ols : ListLoop n) -> Type where
     NoNewLoop : LoopDecision src ols
-    OneNewLoop : {gs : _} -> {initRegs : _} -> {initUc : _} -> AreWinded src.registers gs initRegs initUc => LoopDecision src []
+    -- OneNewLoop : {gs : _} -> {initRegs : _} -> {initUc : _} -> AreWinded src.registers gs initRegs initUc => LoopDecision src []
 
   namespace Wind
     public export
@@ -113,7 +113,7 @@ namespace Possible
   startLoops : (src : Source n) -> {l : _} -> (remSrcs' : VectSource l n) -> (uc : Nat) -> (ols : ListLoop n) -> (loopDec : LoopDecision src ols) =>
                Wind.Result n
   startLoops src remSrcs' uc ols @{NoNewLoop} = R src _ remSrcs' uc ols
-  startLoops src remSrcs' uc [] @{OneNewLoop {gs} {initRegs} {initUc}} = R (Src initRegs) _ [] initUc [L src.registers remSrcs' uc gs initRegs]
+--  startLoops src remSrcs' uc [] @{OneNewLoop {gs} {initRegs} {initUc}} = R (Src initRegs) _ [] initUc [L src.registers remSrcs' uc gs initRegs]
 
   public export
   isSuitable : (finalRegs : VectValue n) -> ListLoop n -> Bool
@@ -124,11 +124,11 @@ namespace Possible
   data CloseLoopDecision : (remSrcs : VectSource l n) -> (finalRegs : VectValue n) -> (ols : ListLoop n) -> Type where
     NoClose : CloseLoopDecision remSrcs finalRegs ols
     -- TODO: remSrcs may not be [], I just don't want to unwind them now
-    DoClose : (canUnwindAll : CanUnwindAll initRegs gs finalRegs) =>
-              -- TODO: not enough, need to check for a particular expression
-              So (hasUndetDependsOnlyOnSelf initRegs @{areWinded} finalRegs @{canUnwindAll}) =>
-
-              CloseLoopDecision [] finalRegs ((L savedRegs savedSrcs savedUc gs initRegs @{areWinded}) :: ols)
+--    DoClose : (canUnwindAll : CanUnwindAll initRegs gs finalRegs) =>
+--              -- TODO: not enough, need to check for a particular expression
+--              So (hasUndetDependsOnlyOnSelf initRegs @{areWinded} finalRegs @{canUnwindAll}) =>
+--
+--              CloseLoopDecision [] finalRegs ((L savedRegs savedSrcs savedUc gs initRegs @{areWinded}) :: ols)
 
   namespace Unwind
     public export
@@ -146,15 +146,15 @@ namespace Possible
                   Unwind.Result n
   unwindContext remSrcs finalRegs' curUc curOls NoClose =
     R _ remSrcs finalRegs' curUc curOls
-  unwindContext [] finalRegs' _ (L savedRegs savedSrcs savedUc gs initRegs @{areWinded} :: ols) DoClose = do
-    let rec : ?; rec = unwind savedRegs savedUc gs initRegs finalRegs' @{areWinded}
-    R _ savedSrcs (fst rec) (snd rec) ols
+--  unwindContext [] finalRegs' _ (L savedRegs savedSrcs savedUc gs initRegs @{areWinded} :: ols) DoClose = do
+--    let rec : ?; rec = unwind savedRegs savedUc gs initRegs finalRegs' @{areWinded}
+--    R _ savedSrcs (fst rec) (snd rec) ols
 
   public export
   getLoopState : (curOls : ListLoop n) -> CloseLoopDecision remSrcs finalRegs' curOls -> MaybeBool
   getLoopState [] NoClose = Nothing
   getLoopState (_ :: _) NoClose = Just False
-  getLoopState (L savedRegs savedSrcs savedUc gs initRegs :: ols) DoClose = Just True
+  -- getLoopState (L savedRegs savedSrcs savedUc gs initRegs :: ols) DoClose = Just True
 
   public export
   data EdgeDecision : {-hasLoop and canEnd = Just True-}MaybeBool -> Type where
@@ -224,6 +224,7 @@ test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{
 test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0 []
 test1 = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} Finish
 
+{-
 test2 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 2 []
 test2 = Step [] @{SinkIsValidWithImmediate} @{OneNewLoop {gs=[GType, GType, GValue]} @{TheyAreWinded @{AreWindedStep' $ AreWindedStep' @{IsWindedGType'} $ AreWindedStep' @{IsWindedGValue'} $ AreWindedBase'}}} (
           Assign 1 0 $
