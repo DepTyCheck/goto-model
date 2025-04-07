@@ -19,14 +19,14 @@ data Message : Type where
   Divide : Message
   Close : Message
 
-data Exists' : (forall k . (0 a : k) -> Type) -> Type where
-  Evidence' : {0 k : Type} -> {0 a : k} -> {this : forall k . (0 a : k) -> Type} -> this a -> Exists' this
+data Exists' : ((0 a : k) -> Type) -> Type where
+  Evidence' : {0 a : k} -> {this : (0 a : k) -> Type} -> this a -> Exists' this
 
 record LabelCollectorST where
   constructor LCST
   chan : Channel Message
   mcoverages : List1 ModelCoverage
-  initialCGI : Exists' CoverageGenInfo
+  initialCGI : Exists' {k} CoverageGenInfo
   lastUpdates : List Label
 
 printMCov : ModelCoverage -> CoverageGenInfo g -> String
