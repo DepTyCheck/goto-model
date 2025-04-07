@@ -20,14 +20,24 @@ data Message : Type where
   Close : Message
 
 data Exists' : (forall k . (0 a : k) -> Type) -> Type where
-  Evidence' : {0 k : Type} -> {0 a : k} -> {this : forall k . (0 a : k) -> Type} -> this a -> Exists' this
+  Evidence' : {0 a : k} -> {this : forall k . (0 a : k) -> Type} -> this a -> Exists' this
+
+uncons' : SnocList a -> SnocList a
+uncons' [<] = [<]
+uncons' [< x] = [<]
+uncons' (sx :< y :< x) = uncons' (sx :< y) :< x
+
+snocBounded : Nat -> a -> SnocList a -> SnocList a
+snocBounded lim x sx = if (length sx) < lim
+                          then sx :< x
+                          else uncons' sx :< x
 
 record LabelCollectorST where
   constructor LCST
   chan : Channel Message
   mcoverages : List1 ModelCoverage
   initialCGI : Exists' CoverageGenInfo
-  lastUpdates : List Label
+  lastUpdates : SnocList Label
 
 printMCov : ModelCoverage -> CoverageGenInfo g -> String
 printMCov = show @{Colourful} .: registerCoverage
@@ -71,10 +81,10 @@ collectorMain = do
       msg <- liftIO $ channelGet ch
       case msg of
            (Update l) => do
-             modify { mcoverages $= modifyHead ((MkModelCoverage $ singleton l 1) <+>), lastUpdates $= (l ::) }
+             modify { mcoverages $= modifyHead ((MkModelCoverage $ singleton l 1) <+>), lastUpdates $= (snocBounded 100000 l) }
              collectorLoop'
            Divide => do
-             modify { mcoverages $= (neutral :::) . forget, lastUpdates $= const [] }
+             modify { mcoverages $= (neutral :::) . forget, lastUpdates $= const [<] }
              collectorLoop'
            Close => close
       where
@@ -85,7 +95,7 @@ collectorMain = do
           Right () <- ReadWrite.writeFile "mcov.txt" $ printCGIs (reverse mcovs) cgi
             | Left err => die "Failed to save mcov: \{show err}"
           putStrLn "Success in saving mcov"
-          Right () <- ReadWrite.writeFile "last_upds.txt" $ fastUnlines $ show <$> lupds
+          Right () <- ReadWrite.writeFile "last_upds.txt" $ fastUnlines $ show <$> (toList lupds)
             | Left err => die "Failed to save last updates: \{show err}"
           exitSuccess
 
@@ -128,7 +138,7 @@ export
 start : HasIO io => Channel Message -> CoverageGenInfo g -> io Handler
 start ch cgi = do
   -- TODO: is it possible to escape this assert_total?
-  tid <- liftIO $ assert_total fork $ evalStateT (LCST ch (neutral ::: []) (Evidence' cgi) []) collectorMain
+  tid <- liftIO $ assert_total fork $ evalStateT (LCST ch (neutral ::: []) (Evidence' cgi) [<]) collectorMain
   pure $ MkHandler tid ch
 
 export
