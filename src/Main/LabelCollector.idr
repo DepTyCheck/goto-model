@@ -35,7 +35,7 @@ snocBounded lim x sx = if (length sx) < lim
 record LabelCollectorST where
   constructor LCST
   chan : Channel Message
-  mcoverages : List1 ModelCoverage
+  mcoverages : List1 ModelCoverage  -- TODO: create SnocList1
   initialCGI : Exists' CoverageGenInfo
   lastUpdates : SnocList Label
 
