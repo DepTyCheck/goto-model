@@ -64,6 +64,13 @@ namespace Nat
     NatSumStep : NatSum a b c -> NatSum a (S b) (S c)
 
   public export
+  natSum01 : (a : Nat) -> (b : Nat) -> (c ** NatSum a b c)
+  natSum01 a 0 = (a ** NatSumBase)
+  natSum01 a (S b') = do
+    let rec : ?; rec = natSum01 a b'
+    (_ ** NatSumStep $ snd rec)
+
+  public export
   data NotSame : Nat -> Nat -> Type where
     NotSameLeftBase : NotSame Z (S m')
     NotSameRightBase : NotSame (S n') Z

@@ -40,7 +40,7 @@ run = do
 
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..n]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
-    test' <- unGenLC h $ genProgram (limit f) {n=3} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1)]] 2 []
+    test' <- unGenLC h $ genProgram (limit f) {n=5} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]] 100 3 []
     finishMoment <- lift $ liftIO $ clockTime clock
 
     when (k < n) $ LabelCollector.divide h

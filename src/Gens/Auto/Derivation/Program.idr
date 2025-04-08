@@ -11,11 +11,11 @@ GenOrderTuning "RegOp".dataCon where
 
 GenOrderTuning "ProduceOp".dataCon where
   isConstructor = itIsConstructor
-  deriveFirst _ _ = [10, 11, 12]
+  deriveFirst _ _ = [15, 16, 17]
 
 GenOrderTuning "Step".dataCon where
   isConstructor = itIsConstructor
-  deriveFirst _ _ = [9, 10, 11, 12, 13, 14]
+  deriveFirst _ _ = [10, 11, 12, 13, 14, 15]
 
 GenOrderTuning "CanUnwindAllStep".dataCon where
   isConstructor = itIsConstructor

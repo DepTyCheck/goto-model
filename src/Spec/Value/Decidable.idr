@@ -7,6 +7,10 @@ import public Decidable.Equality
 %default total
 
 public export
+Injective NatSumStep where
+  injective Refl = Refl
+
+public export
 Injective Value.RawI where
   injective Refl = Refl
 
@@ -23,7 +27,7 @@ public export
   injective Refl = Refl
 
 public export
-{vTy : _} -> {isDet : _} -> Injective (Value.JustV {vTy} {isDet}) where
+{vTy : _} -> {isDet : _} -> {c : _} -> Injective (Value.JustV {vTy} {isDet} {c}) where
   injective Refl = Refl
 
 public export
@@ -37,6 +41,13 @@ DecEq (BoolAnd a b c) where
   decEq FalseAndAny AnyAndFalse = No $ \case Refl impossible
   decEq AnyAndFalse FalseAndAny = No $ \case Refl impossible
   decEq AnyAndFalse AnyAndFalse = Yes Refl
+
+public export
+DecEq (NatSum a b c) where
+  decEq NatSumBase NatSumBase = Yes Refl
+  decEq NatSumBase (NatSumStep p2') impossible
+  decEq (NatSumStep _) NatSumBase impossible
+  decEq (NatSumStep p1') (NatSumStep p2') = decEqCong $ decEq p1' p2'
 
 public export
 DecEq VType where
@@ -79,43 +90,52 @@ public export
 DecEq (VExpr {}) where
   decEq (Det rawV) (Det rawV') = decEqCong $ decEq rawV rawV'
   decEq (Undet vTy idx) (Undet vTy idx') = decEqCong $ decEq idx idx'
-  decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-        (Op {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vop' vExprL' vExprR' @{ovtPrf'} @{boolAnd'})
-    with (decEq vop vop', decEq vTyL vTyL', decEq vTyR vTyR', decEq isDetL isDetL', decEq isDetR isDetR')
-      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR)
-            (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL' vExprR')
-        | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl)
-        with (decEq vExprL vExprL', decEq vExprR vExprR', decEq ovtPrf ovtPrf', decEq boolAnd boolAnd')
-          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-                (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl) = Yes Refl
-          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-                (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd'})
-            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, Yes Refl, No contra) = No $ \case Refl => contra Refl
-          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-                (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf'} @{boolAnd'})
-            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, No contra, _) = No $ \case Refl => contra Refl
-          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-                (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR' @{ovtPrf'} @{boolAnd'})
-            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, No contra, _, _) = No $ \case Refl => contra Refl
-          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR @{ovtPrf} @{boolAnd})
-                (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'})
-            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (No contra, _, _, _) = No $ \case Refl => contra Refl
-      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR)
-            (Op {vTyL} {vTyR} {isDetL} {isDetR=isDetR'} vop vExprL' vExprR')
-            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, No contra) = No $ \case Refl => contra Refl
-      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR)
-            (Op {vTyL} {vTyR} {isDetL=isDetL'} {isDetR=isDetR'} vop vExprL' vExprR')
-            | (Yes Refl, Yes Refl, Yes Refl, No contra, _) = No $ \case Refl => contra Refl
-      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR)
-            (Op {vTyL} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vop vExprL' vExprR')
-            | (Yes Refl, Yes Refl, No contra, _, _) = No $ \case Refl => contra Refl
-      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR)
-            (Op {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vop vExprL' vExprR')
-            | (Yes Refl, No contra, _, _, _) = No $ \case Refl => contra Refl
-      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} vop vExprL vExprR)
-            (Op {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} vop' vExprL' vExprR')
-            | (No contra, _, _, _, _) = No $ \case Refl => contra Refl
+  decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+        (Op {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} {cL=cL'} {cR=cR'} vop' vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+    with (decEq vop vop', decEq vTyL vTyL', decEq vTyR vTyR', decEq isDetL isDetL', decEq isDetR isDetR', decEq cL cL', decEq cR cR')
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl)
+        with (decEq vExprL vExprL', decEq vExprR vExprR', decEq ovtPrf ovtPrf', decEq boolAnd boolAnd', decEq natSum natSum')
+          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+                (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) = Yes Refl
+          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+                (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum'})
+            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, No contra) = No $ \case Refl => contra Refl
+          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+                (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd'} @{natSum'})
+            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, Yes Refl, No contra, _) = No $ \case Refl => contra Refl
+          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+                (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf'} @{boolAnd'} @{natSum'})
+            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, Yes Refl, No contra, _, _) = No $ \case Refl => contra Refl
+          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+                (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (Yes Refl, No contra, _, _, _) = No $ \case Refl => contra Refl
+          decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+                (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+            | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl) | (No contra, _, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR=cR'} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, No contra) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL=cL'} {cR=cR'} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, Yes Refl, No contra, _) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL} {vTyR} {isDetL} {isDetR=isDetR'} {cL=cL'} {cR=cR'} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, Yes Refl, Yes Refl, Yes Refl, No contra, _, _) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL} {vTyR} {isDetL=isDetL'} {isDetR=isDetR'} {cL=cL'} {cR=cR'} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, Yes Refl, Yes Refl, No contra, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} {cL=cL'} {cR=cR'} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, Yes Refl, No contra, _, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} {cL=cL'} {cR=cR'} vop vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (Yes Refl, No contra, _, _, _, _, _) = No $ \case Refl => contra Refl
+      decEq (Op {vTyL} {vTyR} {isDetL} {isDetR} {cL} {cR} vop vExprL vExprR @{ovtPrf} @{boolAnd} @{natSum})
+            (Op {vTyL=vTyL'} {vTyR=vTyR'} {isDetL=isDetL'} {isDetR=isDetR'} {cL=cL'} {cR=cR'} vop' vExprL' vExprR' @{ovtPrf'} @{boolAnd'} @{natSum'})
+        | (No contra, _, _, _, _, _, _) = No $ \case Refl => contra Refl
   decEq (Det {}) (Op {}) = No $ \case Refl impossible
   decEq (Undet {}) (Op {}) = No $ \case Refl impossible
   decEq (Op {}) (Det {}) = No $ \case Refl impossible
@@ -126,10 +146,11 @@ DecEq (VExpr {}) where
 public export
 DecEq Value where
   decEq Unkwn Unkwn = Yes Refl
-  decEq (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) with (decEq vTy1 vTy2, decEq isDet1 isDet2)
-    decEq (JustV {vTy} {isDet} vExpr1) (JustV {vTy} {isDet} vExpr2) | (Yes Refl, Yes Refl) = decEqCong $ decEq vExpr1 vExpr2
-    decEq (JustV {vTy} {isDet=isDet1} vExpr1) (JustV {vTy} {isDet=isDet2} vExpr2) | (Yes Refl, No contra) = No $ \case Refl => contra Refl
-    decEq (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) | (No contra, _) = No $ \case Refl => contra Refl
+  decEq (JustV {vTy=vTy1} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} {c=c2} vExpr2) with (decEq vTy1 vTy2, decEq isDet1 isDet2, decEq c1 c2)
+    decEq (JustV {vTy} {isDet} {c} vExpr1) (JustV {vTy} {isDet} {c} vExpr2) | (Yes Refl, Yes Refl, Yes Refl) = decEqCong $ decEq vExpr1 vExpr2
+    decEq (JustV {vTy} {isDet} {c=c1} vExpr1) (JustV {vTy} {isDet} {c=c2} vExpr2) | (Yes Refl, Yes Refl, No contra) = No $ \case Refl => contra Refl
+    decEq (JustV {vTy} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy} {isDet=isDet2} {c=c2} vExpr2) | (Yes Refl, No contra, _) = No $ \case Refl => contra Refl
+    decEq (JustV {vTy=vTy1} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} {c=c2} vExpr2) | (No contra, _, _) = No $ \case Refl => contra Refl
   decEq Unkwn (JustV vExpr) = No $ \case Refl impossible
   decEq (JustV vExpr) Unkwn = No $ \case Refl impossible
 

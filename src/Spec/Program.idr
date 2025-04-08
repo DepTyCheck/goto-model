@@ -6,16 +6,16 @@ import public Spec.Context
 
 namespace LinearBlock
   public export
-  data LinearBlock : VectValue n -> VectValue n -> Type where
+  data LinearBlock : (cLim : Nat) -> (regs : VectValue n) -> VectValue n -> Type where
     Assign : (target, i : Fin n) ->
              NotSame target i =>
-             LinearBlock (duplicate target i regs) finalRegs ->
-             LinearBlock regs finalRegs
+             LinearBlock cLim (duplicate target i regs) finalRegs ->
+             LinearBlock cLim regs finalRegs
     RegOp : (vop : ValueOp) -> (target : Fin n) ->
-            Produce vop regs v =>
-            LinearBlock (replaceAt target v regs) finalRegs ->
-            LinearBlock regs finalRegs
-    Finish : LinearBlock regs regs
+            Produce vop cLim regs v =>
+            LinearBlock cLim (replaceAt target v regs) finalRegs ->
+            LinearBlock cLim regs finalRegs
+    Finish : LinearBlock cLim regs regs
 
 namespace Bool
   namespace Maybe
@@ -194,10 +194,12 @@ namespace Possible
 -- just delayed isn't enough because it doesn't force the generator to choose the other source
 public export
 data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) ->
+               (cLim : Nat) ->  -- complexity limit of expressions
                (uc : Nat) ->  -- count of undetermined Values, i.e. (JustV $ Undet ...)
                (ols : ListLoop n) -> Type where
   Step : {n : _} -> {0 m : _} ->
          {immSrc, delaSrc : _} -> {srcs : VectSource m n} ->
+         {cLim : _} ->
          {uc : _} ->
          {ols : _} ->
          {finalRegs' : _} ->
@@ -207,21 +209,21 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
          let remSrcs' : ?; remSrcs' = snd $ append' delaSrc sinkR.remainedSrcs in
          (loopDec : LoopDecision sinkR.mergedSrc ols) =>
          let windR : ?; windR = startLoops sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
-         (linBlk : LinearBlock windR.currentSrc.registers finalRegs') ->
+         (linBlk : LinearBlock cLim windR.currentSrc.registers finalRegs') ->
          So (isSuitable finalRegs' windR.currentOls) =>
          (closeDec : CloseLoopDecision windR.remainedSrcs finalRegs' windR.currentOls) =>
          let unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec in 
          (edgeDec : EdgeDecision $ getLoopState windR.currentOls closeDec) ->
          let edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
-         Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs unwindR.contUc unwindR.contOls ->
-         Program immSrc delaSrc srcs uc ols
-  Finish : Program Nothing Nothing [] uc []
-  FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs uc []
+         Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls ->
+         Program immSrc delaSrc srcs cLim uc ols
+  Finish : Program Nothing Nothing [] cLim uc []
+  FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs cLim uc []
 
-test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 1 []
+test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 2 1 []
 test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} $ Finish
 
-test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 0 []
+test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 2 0 []
 test1 = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} Finish
 
 {-

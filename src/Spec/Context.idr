@@ -139,33 +139,33 @@ namespace Source
     pure $ JustV $ Undet vTy uc
 
   public export
+  eraseOrSkip : VType -> Value -> StateT Bool (State Nat) Value
+  eraseOrSkip vTy v = do
+    isErased <- get
+    if isErased
+       then pure v
+       else erase vTy
+
+  public export
   mergeValues : Value -> Value -> Nat -> StateT {-isErased-}Bool (State Nat) Value
   mergeValues Unkwn v2 uc = do
     lift $ put uc  -- reset uc in state back no matter what is v2
     pure Unkwn
-  mergeValues (JustV vExpr) Unkwn uc = do
-    -- uc is already reset
-    pure Unkwn
-  mergeValues (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) uc with (decEq vTy1 vTy2, decEq isDet1 isDet2)
-    mergeValues (JustV {vTy} {isDet} vExpr1) (JustV {vTy} {isDet} vExpr2) uc | (Yes Refl, Yes Refl) =
+  mergeValues (JustV vExpr) Unkwn uc = pure Unkwn  -- uc is already reset
+  mergeValues (JustV {vTy=vTy1} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} {c=c2} vExpr2) uc with (decEq vTy1 vTy2, decEq isDet1 isDet2, decEq c1 c2)
+    mergeValues (JustV {vTy} {isDet} {c} vExpr1) (JustV {vTy} {isDet} {c} vExpr2) uc | (Yes Refl, Yes Refl, Yes Refl) =
       case decEq vExpr1 vExpr2 of
            (Yes Refl) => pure $ JustV vExpr1
            (No _) => do
              if isDet
                 then erase vTy  -- if isErased then isDet == False
-                else do
-                  isErased <- get
-                  if isErased
-                     then pure $ JustV vExpr2
-                     else erase vTy
-    mergeValues (JustV {vTy} {isDet=isDet1} vExpr1) (JustV {vTy} {isDet=isDet2} vExpr2) uc | (Yes Refl, No _) = do
-      isErased <- get
-      if isErased
-         then pure $ JustV vExpr2
-         else erase vTy
-    mergeValues (JustV {vTy=vTy1} {isDet=isDet1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} vExpr2) uc | (No _, _) = do
+                else eraseOrSkip vTy (JustV vExpr2)
+    mergeValues (JustV {vTy} {isDet} {c=c1} vExpr1) (JustV {vTy} {isDet} {c=c2} vExpr2) uc | (Yes Refl, Yes Refl, No _) = eraseOrSkip vTy (JustV vExpr2)
+    mergeValues (JustV {vTy} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy} {isDet=isDet2} {c=c2} vExpr2) uc | (Yes Refl, No _, _) = eraseOrSkip vTy (JustV vExpr2)
+    mergeValues (JustV {vTy=vTy1} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy=vTy2} {isDet=isDet2} {c=c2} vExpr2) uc | (No _, _, _) = do
       lift $ put uc  -- reset uc in state
       pure Unkwn
+
   
   public export
   mergeStep' : IsSucc k => VectSource k (S n) -> StateT Bool (State Nat) (Value, VectSource k n)
@@ -264,14 +264,14 @@ namespace Loop
     (::) : Loop n -> ListLoop n -> ListLoop n
 
   public export
-  dependsOnlyOn : (idx : Nat) -> (vExpr : VExpr vTy isDet) -> Bool
+  dependsOnlyOn : (idx : Nat) -> (vExpr : VExpr vTy isDet c) -> Bool
   dependsOnlyOn _ (Det _) = True
   dependsOnlyOn idx (Undet vTy idx') = idx == idx'
   dependsOnlyOn idx (Op vop vExprL vExprR) = (dependsOnlyOn idx vExprL) && (dependsOnlyOn idx vExprR)
 
   public export
-  unwindValue : {vTy : _} -> {isDet, finalIsDet : _} ->
-                (savedExpr : VExpr vTy isDet) -> (initIdx : Nat) -> (finalExpr : VExpr vTy finalIsDet) ->
+  unwindValue : {vTy : _} -> {isDet, finalIsDet : _} -> {c, finalC : _} ->
+                (savedExpr : VExpr vTy isDet c) -> (initIdx : Nat) -> (finalExpr : VExpr vTy finalIsDet finalC) ->
                 State Nat Value
   unwindValue {vTy} {finalIsDet = False} savedExpr initIdx finalExpr = do
     if dependsOnlyOn initIdx finalExpr

@@ -6,8 +6,8 @@ import public Spec.Program
 
 public export
 genProgram : Fuel ->
-             {m, n : Nat} -> (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) -> (uc : Nat) -> (ols : ListLoop n) ->
-             Gen MaybeEmpty $ Program immSrc delaSrc srcs uc ols
+             {m, n : Nat} -> (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : VectSource m n) -> (cLim : Nat) -> (uc : Nat) -> (ols : ListLoop n) ->
+             Gen MaybeEmpty $ Program immSrc delaSrc srcs cLim uc ols
 {-
 public export
 genSink : Fuel ->

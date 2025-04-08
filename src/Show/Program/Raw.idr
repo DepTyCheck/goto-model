@@ -35,7 +35,7 @@ Show (VectBool {}) where
          else joinBy ", " [show n, rec]
 
 public export
-Show (Program {n = S n'} immSrc delaSrc srcs uc ols) where
+Show (Program {n = S n'} immSrc delaSrc srcs cLim uc ols) where
   show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec cont) = do
     let sinkStr : String; sinkStr = case sink of
                                          SinkIsValidWithImmediate => "immediate sink"

@@ -5,7 +5,7 @@ import Show.Value
 import Data.String
 
 public export
-Show (LinearBlock regs finalRegs) where
+Show (LinearBlock cLim regs finalRegs) where
   show (Assign target i cont) = do
     let insn = "Assign \{show target} <- \{show i}"
     let rec = show cont
