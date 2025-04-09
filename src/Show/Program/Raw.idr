@@ -11,6 +11,11 @@ Show (Source n) where
   show (Src vs) = "(\{show vs})"
 
 public export
+Show (MaybeSource n) where
+  show Nothing = "(Nothing)"
+  show (Just $ Src vs) = "(Just \{show vs}\)"
+
+public export
 Show (VectSource {}) where
   show srcs = "[\{show' srcs}]"
   where
@@ -18,6 +23,34 @@ Show (VectSource {}) where
     show' [] = ""
     show' [src] = show src
     show' (src :: src1 :: srcs) = "\{show src}, \{show' $ src1 :: srcs}"
+
+public export
+Show Guarantee where
+  show GValue = "GValue"
+  show GType = "GType"
+  show GNothing = "GNothing"
+
+public export
+Show (VectGuarantee n) where
+  show gs = "[\{show' gs}]"
+    where
+      show' : forall n . VectGuarantee n -> String
+      show' [] = ""
+      show' [g] = show g
+      show' (g1 :: g2 :: gs) = "\{show g1}, \{show' (g2 :: gs)}"
+
+public export
+Show (Loop n) where
+  show (L savedRegs savedSrcs savedUc gs initRegs) = "L \{show savedRegs} \{show savedSrcs} \{show savedUc} \{show gs} \{show initRegs}"
+
+public export
+Show (ListLoop n) where
+  show ols = "[\{show' ols}]"
+    where
+      show' : forall n . ListLoop n -> String
+      show' [] = ""
+      show' [ol] = show ol
+      show' (ol1 :: ol2 :: ols) = "\{show ol1}, \{show' $ ol2 :: ols}"
 
 public export
 Show (VectBool {}) where
@@ -42,7 +75,7 @@ Show (Program {n = S n'} immSrc delaSrc srcs cLim uc ols) where
                                          SinkIsValidWithNothing => "just sink"
     let loopStr : String; loopStr = case loopDec of
                                          NoNewLoop => "no loop"
-                                         -- OneNewLoop => "starts loop"
+                                         OneNewLoop => "starts loop"
     let pre = "Available: \{show $ length bs}, bs: \{show bs} (\{sinkStr}, \{loopStr})"
     let post : String; post = case edgeDec of
                                    Exit => "Exit"

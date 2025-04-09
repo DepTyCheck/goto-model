@@ -81,6 +81,7 @@ collectorMain = do
       msg <- liftIO $ channelGet ch
       case msg of
            (Update l) => do
+             putStrLn "Got label: \{show l}"
              modify { mcoverages $= modifyHead ((MkModelCoverage $ singleton l 1) <+>), lastUpdates $= (snocBounded 100000 l) }
              collectorLoop'
            Divide => do
@@ -103,7 +104,9 @@ collectorMain = do
         collectorLoop' = do
           msig <- handleNextCollectedSignal
           case msig of
-               (Just _) => close
+               (Just _) => do
+                 putStrLn "Got signal, closing..."
+                 close
                Nothing => collectorLoop
 
 export
