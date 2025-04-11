@@ -1,12 +1,13 @@
 module Spec.Program
 
 import public Spec.Context
+import public Debug.Trace
 
 %default total
 
 namespace LinearBlock
   public export
-  data LinearBlock : (cLim : Nat) -> (regs : VectValue n) -> VectValue n -> Type where
+  data LinearBlock : (cLim : Nat) -> (regs : VectValue n) -> {-finalRegs-}VectValue n -> Type where
     Assign : (target, i : Fin n) ->
              NotSame target i =>
              LinearBlock cLim (duplicate target i regs) finalRegs ->
@@ -55,13 +56,27 @@ namespace Step
   hasUndetDependsOnlyOnSelf' (Unkwn :: initRegs) @{AreWindedStep' @{IsWindedGNothing'} areWinded''}
                             (fr :: finalRegs) @{CanUnwindAllStep @{CanUnwindGNothing} _} =
     hasUndetDependsOnlyOnSelf' initRegs @{areWinded''} finalRegs
-  hasUndetDependsOnlyOnSelf' _ _ = False  -- TODO: compiler is broken :(
+  hasUndetDependsOnlyOnSelf' _ _ = trace ("Unreachable!!!!!!") False  -- TODO: compiler is broken :(
 
   public export
   hasUndetDependsOnlyOnSelf : (initRegs : VectValue n) -> AreWinded savedRegs gs initRegs initUc =>
                               (finalRegs : VectValue n) -> CanUnwindAll initRegs gs finalRegs => Bool
   hasUndetDependsOnlyOnSelf initRegs @{TheyAreWinded @{areWinded'}} finalRegs @{canUnwindAll} =
     hasUndetDependsOnlyOnSelf' initRegs @{areWinded'} finalRegs @{canUnwindAll}
+
+  public export
+  areGuaranteesWeaklyPreserved : (gs : VectGuarantee n) -> (initRegs : VectValue n) -> (finalRegs : VectValue m) -> Bool
+  areGuaranteesWeaklyPreserved [] [] finalRegs = True
+  areGuaranteesWeaklyPreserved (GValue :: gs) (ir :: initRegs) finalRegs = do
+    let rec : ?; rec = areGuaranteesWeaklyPreserved gs initRegs finalRegs
+    (contains ir finalRegs) && rec
+    where
+      contains : forall n . Value -> VectValue n -> Bool
+      contains v [] = False
+      contains v (v1 :: vs) = case decEq v v1 of
+                                   (Yes _) => True
+                                   (No _) => contains v vs
+  areGuaranteesWeaklyPreserved (_ :: gs) (ir :: initRegs) finalRegs = areGuaranteesWeaklyPreserved gs initRegs finalRegs
 
   public export
   data SinkIsValid : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (bs : VectBool m) -> Type where
@@ -115,7 +130,8 @@ namespace Step
   public export
   isSuitable : (finalRegs : VectValue n) -> ListLoop n -> Bool
   isSuitable finalRegs [] = True
-  isSuitable finalRegs (ol :: ols) = hasUndet finalRegs
+  isSuitable finalRegs ((L savedRegs savedSrcs savedUc gs initRegs) :: ols) =
+    hasUndet finalRegs && areGuaranteesWeaklyPreserved gs initRegs finalRegs
 
   public export
   data CloseLoopDecision : (remSrcs : VectSource l n) -> (finalRegs : VectValue n) -> (ols : ListLoop n) -> Type where
@@ -216,7 +232,7 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
          Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls ->
          Program immSrc delaSrc srcs cLim uc ols
   Finish : Program Nothing Nothing [] cLim uc []
-  FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs cLim uc []
+  FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs cLim uc ols
 
 test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 2 1 []
 test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) @{Oh} Exit @{NoClose} $ Finish
