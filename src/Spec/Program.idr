@@ -67,16 +67,16 @@ namespace Step
   public export
   areGuaranteesWeaklyPreserved : (gs : VectGuarantee n) -> (initRegs : VectValue n) -> (finalRegs : VectValue m) -> Bool
   areGuaranteesWeaklyPreserved [] [] finalRegs = True
-  areGuaranteesWeaklyPreserved (GValue :: gs) (ir :: initRegs) finalRegs = do
-    let rec : ?; rec = areGuaranteesWeaklyPreserved gs initRegs finalRegs
-    (contains ir finalRegs) && rec
+  areGuaranteesWeaklyPreserved (GValue :: gs) (ir :: initRegs) finalRegs =
+    (contains ir finalRegs) && areGuaranteesWeaklyPreserved gs initRegs finalRegs
     where
       contains : forall n . Value -> VectValue n -> Bool
       contains v [] = False
       contains v (v1 :: vs) = case decEq v v1 of
                                    (Yes _) => True
                                    (No _) => contains v vs
-  areGuaranteesWeaklyPreserved (_ :: gs) (ir :: initRegs) finalRegs = areGuaranteesWeaklyPreserved gs initRegs finalRegs
+  areGuaranteesWeaklyPreserved (_ :: gs) (ir :: initRegs) finalRegs =
+    areGuaranteesWeaklyPreserved gs initRegs finalRegs
 
   public export
   data SinkIsValid : (immSrc : MaybeSource n) -> (srcs : VectSource m n) -> (bs : VectBool m) -> Type where
