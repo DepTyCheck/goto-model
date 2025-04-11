@@ -17,8 +17,9 @@ import Test.DepTyCheck.Gen
 import Test.DepTyCheck.Gen.Coverage
 import Show.Program.Raw
 import Gens.Auto.Derivation.Sink
-import Gens.Auto.Derivation.Loop
+import Gens.Auto.Derivation.LoopDecision
 import Gens.Auto.Derivation.LinearBlock
+import Gens.Auto.Derivation.CloseLoopDecision
 import Gens.Auto.Derivation.Edge
 import Gens.Auto.Derivation.Program
 import Main.LabelCollector
