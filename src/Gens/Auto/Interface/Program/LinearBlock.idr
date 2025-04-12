@@ -1,7 +1,7 @@
-module Gens.Auto.Interface.LinearBlock
+module Gens.Auto.Interface.Program.LinearBlock
 
 import public Gens.Auto.Interface.Common
-import public Spec.Program
+import public Spec.Program.LinearBlock
 import public Show.Program.Raw
 import public Show.Value
 

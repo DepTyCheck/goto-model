@@ -1,7 +1,7 @@
-module Gens.Auto.Derivation.CloseLoopDecision
+module Gens.Auto.Derivation.Program.CloseLoopDecision
 
 import public Gens.Auto.Derivation.Common
-import public Gens.Auto.Interface.CloseLoopDecision
+import public Gens.Auto.Interface.Program.CloseLoopDecision
 
 %logging "deptycheck.derive" 20
 
@@ -13,5 +13,5 @@ GenOrderTuning "CanUnwindAllStep".dataCon where
   isConstructor = itIsConstructor
   deriveFirst _ _ = [8, 7]
 
-Gens.Auto.Interface.CloseLoopDecision.genCloseLoopDecision = deriveGen
+Gens.Auto.Interface.Program.CloseLoopDecision.genCloseLoopDecision = deriveGen
 

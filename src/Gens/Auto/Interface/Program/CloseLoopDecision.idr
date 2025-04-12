@@ -1,7 +1,7 @@
-module Gens.Auto.Interface.CloseLoopDecision
+module Gens.Auto.Interface.Program.CloseLoopDecision
 
 import public Gens.Auto.Interface.Common
-import public Spec.Program
+import public Spec.Program.Loop
 import public Show.Program.Raw
 import public Show.Value
 

@@ -28,34 +28,46 @@ namespace Bool
   boolAnd True False = (False ** AnyAndFalse)
   boolAnd True True = (True ** TrueAndTrue)
 
-  public export
-  data VectBool : Nat -> Type where
-    Nil : VectBool 0
-    (::) : Bool -> VectBool n -> VectBool (S n)
+  namespace Maybe
+    public export
+    data MaybeBool : Type where
+      Nothing : MaybeBool
+      Just : Bool -> MaybeBool
 
-  public export
-  length : VectBool n -> Nat
-  length [] = 0
-  length (_ :: vs) = S $ length vs
+    public export
+    data NotJustFalse : MaybeBool -> Type where
+      ItIsJustTrue : NotJustFalse (Just True)
+      ItIsNothing : NotJustFalse Nothing
 
-  public export
-  lengthIsCorrect : (vs : VectBool n) -> n = length vs
-  lengthIsCorrect [] = Refl
-  lengthIsCorrect (_ :: vs) = cong S $ lengthIsCorrect vs
+  namespace Vect
+    public export
+    data VectBool : Nat -> Type where
+      Nil : VectBool 0
+      (::) : Bool -> VectBool n -> VectBool (S n)
 
-  public export
-  data HasTrue : VectBool n -> Type where
-    Here : HasTrue (True :: bs)
-    There : HasTrue bs -> HasTrue (b :: bs)
+    public export
+    length : VectBool n -> Nat
+    length [] = 0
+    length (_ :: vs) = S $ length vs
 
-  public export
-  Uninhabited (HasTrue []) where
-    uninhabited _ impossible
+    public export
+    lengthIsCorrect : (vs : VectBool n) -> n = length vs
+    lengthIsCorrect [] = Refl
+    lengthIsCorrect (_ :: vs) = cong S $ lengthIsCorrect vs
 
-  public export
-  hasTrueIsSucc : {bs : VectBool n} -> HasTrue bs -> IsSucc n
-  hasTrueIsSucc {bs = True :: _} Here = ItIsSucc
-  hasTrueIsSucc {bs = _ :: _} (There _) = ItIsSucc
+    public export
+    data HasTrue : VectBool n -> Type where
+      Here : HasTrue (True :: bs)
+      There : HasTrue bs -> HasTrue (b :: bs)
+
+    public export
+    Uninhabited (HasTrue []) where
+      uninhabited _ impossible
+
+    public export
+    hasTrueIsSucc : {bs : VectBool n} -> HasTrue bs -> IsSucc n
+    hasTrueIsSucc {bs = True :: _} Here = ItIsSucc
+    hasTrueIsSucc {bs = _ :: _} (There _) = ItIsSucc
 
 namespace Nat
   public export

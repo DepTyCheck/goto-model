@@ -1,7 +1,7 @@
-module Gens.Auto.Interface.Sink
+module Gens.Auto.Interface.Program.Sink
 
 import public Gens.Auto.Interface.Common
-import public Spec.Program
+import public Spec.Program.Sink
 import public Show.Program.Raw
 import public Show.Value
 

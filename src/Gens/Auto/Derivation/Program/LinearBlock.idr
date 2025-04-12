@@ -1,7 +1,7 @@
-module Gens.Auto.Derivation.LinearBlock
+module Gens.Auto.Derivation.Program.LinearBlock
 
 import public Gens.Auto.Derivation.Common
-import public Gens.Auto.Interface.LinearBlock
+import public Gens.Auto.Interface.Program.LinearBlock
 
 %logging "deptycheck.derive" 20
 
@@ -13,5 +13,5 @@ GenOrderTuning "ProduceOp".dataCon where
   isConstructor = itIsConstructor
   deriveFirst _ _ = [15, 16, 17]
 
-Gens.Auto.Interface.LinearBlock.genLinearBlock = deriveGen
+Gens.Auto.Interface.Program.LinearBlock.genLinearBlock = deriveGen
 
