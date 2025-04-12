@@ -7,11 +7,11 @@ import public Gens.Auto.Interface.Program.LinearBlock
 
 GenOrderTuning "Assign".dataCon where
   isConstructor = itIsConstructor
-  deriveFirst _ _ = [8]
+  deriveFirst _ _ = [7, 8]
 
 GenOrderTuning "RegOp".dataCon where
   isConstructor = itIsConstructor
-  deriveFirst _ _ = [8, 9]
+  deriveFirst _ _ = [7, 8, 9]
 
 GenOrderTuning "ProduceOp".dataCon where
   isConstructor = itIsConstructor

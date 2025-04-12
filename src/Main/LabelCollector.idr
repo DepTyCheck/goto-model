@@ -81,7 +81,6 @@ collectorMain = do
       msg <- liftIO $ channelGet ch
       case msg of
            (Update l) => do
-             putStrLn "Got label: \{show l}"
              modify { mcoverages $= modifyHead ((MkModelCoverage $ singleton l 1) <+>), lastUpdates $= (snocBounded 100000 l) }
              collectorLoop'
            Divide => do
@@ -98,6 +97,7 @@ collectorMain = do
           putStrLn "Success in saving mcov"
           Right () <- ReadWrite.writeFile "last_upds.txt" $ fastUnlines $ show <$> (toList lupds)
             | Left err => die "Failed to save last updates: \{show err}"
+          putStrLn "Success in saving last_upds"
           exitSuccess
 
         collectorLoop' : StateT LabelCollectorST io ()
