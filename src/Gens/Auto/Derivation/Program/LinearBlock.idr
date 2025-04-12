@@ -5,9 +5,13 @@ import public Gens.Auto.Interface.Program.LinearBlock
 
 %logging "deptycheck.derive" 20
 
+GenOrderTuning "Assign".dataCon where
+  isConstructor = itIsConstructor
+  deriveFirst _ _ = [8]
+
 GenOrderTuning "RegOp".dataCon where
   isConstructor = itIsConstructor
-  deriveFirst _ _ = [6]
+  deriveFirst _ _ = [8, 9]
 
 GenOrderTuning "ProduceOp".dataCon where
   isConstructor = itIsConstructor

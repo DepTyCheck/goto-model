@@ -27,12 +27,6 @@ namespace Wind
   startLoops src remSrcs' uc ols @{NoNewLoop} = R src _ remSrcs' uc ols
   startLoops src remSrcs' uc [] @{OneNewLoop {gs} {initRegs} {initUc}} = R (Src initRegs) _ [] initUc [L src.registers remSrcs' uc gs initRegs]
 
-public export
-isSuitable : (finalRegs : VectValue n) -> ListLoop n -> Bool
-isSuitable finalRegs [] = True
-isSuitable finalRegs ((L savedRegs savedSrcs savedUc gs initRegs) :: ols) =
-  hasUndet finalRegs && areGuaranteesWeaklyPreserved gs initRegs finalRegs
-
 namespace Unwind
   public export
   data CloseLoopDecision : (remSrcs : VectSource l n) -> (finalRegs : VectValue n) -> (ols : ListLoop n) -> Type where

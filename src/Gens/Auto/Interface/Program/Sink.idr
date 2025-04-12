@@ -2,8 +2,6 @@ module Gens.Auto.Interface.Program.Sink
 
 import public Gens.Auto.Interface.Common
 import public Spec.Program.Sink
-import public Show.Program.Raw
-import public Show.Value
 
 public export
 genSink : Fuel ->
