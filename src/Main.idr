@@ -18,7 +18,6 @@ import Test.DepTyCheck.Gen.Coverage
 import Show.Program.Raw
 import Show.Program.LinearBlock
 import Gens.Auto.Derivation
-import Gens.Manual.Context.Loop
 import Main.LabelCollector
 
 
