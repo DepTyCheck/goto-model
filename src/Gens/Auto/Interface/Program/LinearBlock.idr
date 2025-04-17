@@ -5,8 +5,9 @@ import public Spec.Program.LinearBlock
 
 public export
 genLinearBlock : Fuel
-              -> {n, l : _}
+              -> {n : _}
               -> (cLim : _)
+              -> {l : _}
               -> {remSrcs : VectSource l n}
               -> {ols : ListLoop n}
               -> (closeDec : CloseLoopDecision {n} remSrcs ols)

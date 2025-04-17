@@ -147,7 +147,7 @@ start ch cgi = do
 
 export
 [SendLabelsToCollector] HasLabelCollector m => CanManageLabels m where
-  manageLabel l x = (liftIO . (flip channelPut) (Update l) =<< (Handler.chan <$> ask)) >> x
+  manageLabel l = (Handler.chan <$> ask) >>= liftIO . (flip channelPut) (Update l)
 
 export
 unGenLC : MonadRandom m => HasIO m => Handler -> Gen em a -> m $ Maybe a

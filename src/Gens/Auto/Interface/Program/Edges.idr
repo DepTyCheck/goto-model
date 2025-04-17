@@ -6,8 +6,8 @@ import public Spec.Program.Edges
 public export
 genEdgeDecision : Fuel
                -> {n, l : _}
-               -> {remSrcs : VectSource l n}
                -> {ols : ListLoop n}
+               -> {remSrcs : VectSource l n}
                -> (closeDec : CloseLoopDecision remSrcs ols)
                -> Gen MaybeEmpty $ EdgeDecision closeDec
 

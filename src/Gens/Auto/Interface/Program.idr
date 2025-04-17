@@ -22,17 +22,18 @@ genProgram : Fuel
              -> (b : ListLoop n)
              -> Gen MaybeEmpty $ CloseLoopDecision a b)
           => (  Fuel
-             -> {n, l : _}
+             -> {n : _}
              -> (a : _)
+             -> {l : _}
              -> {b1 : VectSource l n}
-             -> {b2 : _}
+             -> {b2 : ListLoop n}
              -> (b : CloseLoopDecision b1 b2)
              -> (c : VectValue n)
              -> Gen MaybeEmpty (d ** LinearBlock a b c d))
           => (  Fuel
              -> {n, l : _}
-             -> {a1 : VectSource l n}
              -> {a2 : _}
+             -> {a1 : VectSource l n}
              -> (a : CloseLoopDecision a1 a2)
              -> Gen MaybeEmpty $ EdgeDecision a)
           => {m, n : Nat}
