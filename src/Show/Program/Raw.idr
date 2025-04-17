@@ -1,7 +1,6 @@
 module Show.Program.Raw
 
 import Spec.Program
-
 import Show.Value
 import Show.Program.LinearBlock
 import Data.String
@@ -41,7 +40,8 @@ Show (VectGuarantee n) where
 
 public export
 Show (Loop n) where
-  show (L savedRegs savedSrcs savedUc gs initRegs) = "L \{show savedRegs} \{show savedSrcs} \{show savedUc} \{show gs} \{show initRegs}"
+  show (L savedRegs savedSrcs savedUc gs initRegs) =
+    "L \{show savedRegs} \{show savedSrcs} \{show savedUc} \{show gs} \{show initRegs}"
 
 public export
 Show (ListLoop n) where
@@ -68,19 +68,38 @@ Show (VectBool {}) where
          else joinBy ", " [show n, rec]
 
 public export
+Show (SinkIsValid a b c) where
+  show SinkIsValidWithImmediate = "immediate sink"
+  show SinkIsValidWithNothing = "just sink"
+
+public export
+Show (OpenLoopDecision a b c) where
+  show NoNewLoop = "no loop"
+  show (OneNewLoop {gs}) = "starts loop, guarantees = \{show gs}"
+
+public export
+Show (CloseLoopDecision a b) where
+  show NoClose = "no loop closing"
+  show (DoClose _) = "closes loop"
+
+-- TODO: when put in where clause after show Step, cannot find type of some implicit
+public export
+Show (EdgeDecision a) where
+  show Exit = "Exit"
+  show Jmp = "Jmp"
+  show Condjmp = "Condjmp"
+
+public export
 Show (Program {n = S n'} immSrc delaSrc srcs cLim uc ols) where
   show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec cont) = do
-    let sinkStr : String; sinkStr = case sink of
-                                         SinkIsValidWithImmediate => "immediate sink"
-                                         SinkIsValidWithNothing => "just sink"
-    let loopStr : String; loopStr = case loopDec of
-                                         NoNewLoop => "no loop"
-                                         OneNewLoop => "starts loop"
-    let pre = "Available: \{show $ length bs}, bs: \{show bs} (\{sinkStr}, \{loopStr})"
-    let post : String; post = case edgeDec of
-                                   Exit => "Exit"
-                                   Jmp => "Jmp"
-                                   Condjmp => "Condjmp"
+    let sinkStr : String; sinkStr = show sink
+    let loopDecStr : String; loopDecStr = show loopDec
+    let pre : String; pre = "Available: \{show $ length bs}, bs: \{show bs} (\{sinkStr}, \{loopDecStr})"
+
+    let closeDecStr : String; closeDecStr = show closeDec
+    let edgeDecStr : String; edgeDecStr = show edgeDec
+    let post : String; post = "\{edgeDecStr} (\{closeDecStr})"
+
     let ppBlk : ?; ppBlk = joinBy "\n" [pre, show linBlk, post]
     let rec : ?; rec = show cont
     if rec == ""

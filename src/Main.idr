@@ -16,7 +16,9 @@ import System.Random.Pure.StdGen
 import Test.DepTyCheck.Gen
 import Test.DepTyCheck.Gen.Coverage
 import Show.Program.Raw
+import Show.Program.LinearBlock
 import Gens.Auto.Derivation
+import Gens.Manual.Context.Loop
 import Main.LabelCollector
 
 
@@ -25,12 +27,33 @@ import Main.LabelCollector
 getNat : HasIO io => io Nat
 getNat = stringToNatOrZ <$> getLine
 
+{-
+l : Loop 5
+l = L [ JustV (Undet I 0)
+      , JustV (Undet I 1)
+      , JustV (Det $ RawI 1)
+      , JustV (Det $ RawB True)
+      , JustV (Undet B 2)
+      ] [] 3 [ GValue
+             , GValue
+             , GType
+             , GNothing
+             , GType
+             ] [ JustV (Undet I 0)
+               , JustV (Undet I 1)
+               , JustV (Undet I 2)
+               , Unkwn
+               , JustV (Undet B 3)
+               ] @{TheyAreWinded @{AreWindedStep' @{IsWindedGValue' @{IsWindedUndet'}} $ AreWindedStep' @{IsWindedGValue' @{IsWindedUndet'}} $ AreWindedStep' @{IsWindedGType'} $ AreWindedStep' @{IsWindedGNothing'} $ AreWindedStep' @{IsWindedGType'} $ AreWindedBase'}}
+-}
+
 covering
 run : HasIO io => MonadError String io => io ()
 run = do
-  n <- getNat
+  testCount <- getNat
   seed <- cast <$> getNat
   f <- getNat
+  cLim <- getNat
   let randomGen = mkStdGen seed
   let clock : ?; clock = Monotonic
 
@@ -38,13 +61,14 @@ run = do
   let cgi = initCoverageInfo'' [`{Program}]
   h <- LabelCollector.start ch cgi
 
-  evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..n]) $ \k => do
+  evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..testCount]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
     -- test' <- unGenLC h $ genSink (limit f) {n=5} Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]]
-    test' <- unGenLC h $ genProgram (limit f) @{genSink} @{genLoopDecision} @{genCloseLoopDecision} @{genLinearBlock} @{genEdgeDecision} {n=5} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]] 100 3 []
+    test' <- unGenLC h $ genProgram (limit f) @{genSink} @{genLoopDecision} @{genCloseLoopDecision} @{genLinearBlock} @{genEdgeDecision} {n=5} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]] cLim 3 []
+    -- test' <- unGenLC h $ genLinearBlock (limit f) cLim [l] [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]
     finishMoment <- lift $ liftIO $ clockTime clock
 
-    when (k < n) $ LabelCollector.divide h
+    when (k < testCount) $ LabelCollector.divide h
 
     let diff = timeDifference finishMoment startMoment
     let diff_str = showTime 5 5 diff

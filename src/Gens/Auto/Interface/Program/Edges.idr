@@ -4,7 +4,10 @@ import public Gens.Auto.Interface.Common
 import public Spec.Program.Edges
 
 public export
-genEdgeDecision : Fuel ->
-                  (ls : MaybeBool) ->
-                  Gen MaybeEmpty $ EdgeDecision ls
+genEdgeDecision : Fuel
+               -> {n, l : _}
+               -> {remSrcs : VectSource l n}
+               -> {ols : ListLoop n}
+               -> (closeDec : CloseLoopDecision remSrcs ols)
+               -> Gen MaybeEmpty $ EdgeDecision closeDec
 

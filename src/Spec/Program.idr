@@ -22,33 +22,51 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
       -> {immSrc, delaSrc : _} -> {srcs : VectSource m n}
       -> {cLim : _}
       -> {uc : _}
-      -> {ols : _}
-      -> {finalRegs' : _}
+      -> {0 ols : _}
+      -> {0 finalRegs' : _}
       -> (bs : VectBool m)
       -> (sinkPrf : SinkIsValid immSrc srcs bs)
       => let sinkR : ?; sinkR = sink immSrc srcs uc bs @{sinkPrf} in
          let remSrcs' : ?; remSrcs' = snd $ append' delaSrc sinkR.remainedSrcs in
-         (loopDec : LoopDecision sinkR.mergedSrc ols)
-      => let windR : ?; windR = startLoops sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
-         (linBlk : LinearBlock cLim windR.currentOls windR.currentSrc.registers finalRegs')
-      -> (closeDec : CloseLoopDecision windR.remainedSrcs finalRegs' windR.currentOls)
-      => let unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec in
-         (edgeDec : EdgeDecision $ getLoopState windR.currentOls closeDec)
-      -> let edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
+         (loopDec : OpenLoopDecision sinkR.mergedSrc ols (hasUndet sinkR.mergedSrc.registers))
+      => let 0 windR : ?; windR = windContext sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
+         (closeDec : CloseLoopDecision windR.remainedSrcs windR.currentOls)
+      => (linBlk : LinearBlock cLim closeDec windR.currentSrc.registers finalRegs')
+      -> let 0 unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec @{getCanFinish linBlk} in
+         (edgeDec : EdgeDecision closeDec)
+      -> let 0 edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
          Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls
       -> Program immSrc delaSrc srcs cLim uc ols
   Finish : Program Nothing Nothing [] cLim uc []
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs cLim uc ols
 
 test : Program {n=2} (Just $ Src [JustV $ Undet I 0, JustV $ Det $ RawI 1]) Nothing [] 2 1 []
-test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) Exit @{NoClose} $ Finish
+test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} @{NoClose} (Assign 0 1 $ Finish) Exit $ Finish
 
 test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 2 0 []
-test1 = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} (Assign 0 1 $ Finish) Exit @{NoClose} Finish
+test1 = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} @{NoClose} (Assign 0 1 $ Finish) Exit Finish
 
 test2 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 5 2 []
-test2 = Step [] @{SinkIsValidWithImmediate} @{OneNewLoop {gs=[GType, GType, GValue]} @{TheyAreWinded @{AreWindedStep' $ AreWindedStep' @{IsWindedGType'} $ AreWindedStep' @{IsWindedGValue'} $ AreWindedBase'}}} (
-          Assign 1 0 $
-          RegOp Add 0 @{ProduceOp @{HasTypeHere {ltePrf=LTEZero}} @{ItIsAddVTypes} @{HasTypeThere $ HasTypeThere $ HasTypeHere {ltePrf=LTEZero}}} $
-          Finish
-          ) (Exit) @{DoClose} Finish
+test2 = Step [] @{SinkIsValidWithImmediate}
+                @{OneNewLoop {gs=[GType, GNothing, GValue]}
+                             @{%search}
+                             @{TheyAreWinded @{AreWindedStep' @{IsWindedGType'} $
+                                               AreWindedStep' @{IsWindedGNothing'} $
+                                               AreWindedStep' @{IsWindedGValue'} $
+                                               AreWindedBase'
+                                              }
+                              }
+                 }
+                @{DoClose _}
+             (Assign 1 0 $
+              RegOp Add 0 @{MkFusedProduce @{ProduceOp @{HasTypeHere {ltePrf=LTEZero}}
+                                                       @{ItIsAddVTypes}
+                                                       @{HasTypeThere $
+                                                         HasTypeThere $
+                                                         HasTypeHere {ltePrf=LTEZero}
+                                                        }
+                                            }
+                           } $
+              Finish
+             ) Jmp $
+        Finish

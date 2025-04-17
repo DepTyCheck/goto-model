@@ -1,15 +1,20 @@
 module Spec.Program.Edges
 
 import public Spec.Context.Source
+import public Spec.Program.Loop.Decision.Close
 
 %default total
 
 public export
-data EdgeDecision : {-hasLoop and canEnd = Just True-}MaybeBool -> Type where
-  Exit : NotJustFalse loopState => EdgeDecision loopState
-  Jmp : EdgeDecision loopState
+data IsExitPossible : CloseLoopDecision remSrcs ols -> Type where
+  ExitIsPossibleNoLoops : IsExitPossible {ols=[]} NoClose
+
+public export
+data EdgeDecision : CloseLoopDecision remSrcs ols -> Type where
+  Exit : IsExitPossible closeDec => EdgeDecision closeDec
+  Jmp : EdgeDecision closeDec
   -- TODO: condjmp is only possible then we can end the loop or there's no loop but 1 undet value
-  Condjmp : EdgeDecision loopState
+  Condjmp : EdgeDecision closeDec
 
 %name EdgeDecision edgeDec
 
@@ -22,14 +27,20 @@ record Result (n : Nat) where
   contSrcs : VectSource contSrcsLen n
 
 public export
-makeEdges : {mb : _} -> EdgeDecision mb -> {l : _} -> (srcs : VectSource l n) -> (finalRegs : VectValue n)
-         -> Edges.Result n
-makeEdges {mb} (Exit @{notJustFalse}) srcs finalRegs = R Nothing Nothing _ srcs
-makeEdges {mb} Jmp srcs finalRegs = do
-  case mb of
-       (Just True) => R Nothing Nothing _ srcs
-       _ => R Nothing Nothing _ (Src finalRegs :: srcs)
-makeEdges {mb} Condjmp srcs finalRegs = do
-  case mb of
-       (Just True) => R Nothing Nothing _ (Src finalRegs :: srcs)
-       _ => R (Just $ Src finalRegs) (Just $ Src finalRegs) _ srcs
+makeEdges : {closeDec : CloseLoopDecision {n} _ _}
+         -> EdgeDecision closeDec
+         -> {l : _}
+         -> (srcs : VectSource l n)
+         -> (finalRegs : VectValue n)
+         -> Result n
+makeEdges Exit srcs finalRegs =
+  R Nothing Nothing _ srcs
+makeEdges {closeDec = NoClose} Jmp srcs finalRegs =
+  R Nothing Nothing _ (Src finalRegs :: srcs)
+makeEdges {closeDec = (DoClose _)} Jmp srcs finalRegs =
+  R Nothing Nothing _ srcs
+makeEdges {closeDec = NoClose} Condjmp srcs finalRegs =
+  R (Just $ Src finalRegs) (Just $ Src finalRegs) _ srcs
+makeEdges {closeDec = (DoClose _)} Condjmp srcs finalRegs =
+  R Nothing Nothing _ (Src finalRegs :: srcs)
+
