@@ -33,7 +33,7 @@ hasUndetDependsOnlyOnInit' ((JustV $ Undet vTy i) :: initRegs) @{AreWindedStep' 
   hasUndetDependsOnlyOnThis i finalRegs
 hasUndetDependsOnlyOnInit' (_ :: _) _ = trace "Unreachable!" False
 
--- check that there's an undet value that depends on some initRegs value at any place of the registers
+-- Checks that there's an undet value that depends on an init value at any place of finalRegs
 public export
 hasUndetDependsOnlyOnInit : (initRegs : VectValue n)
                          -> AreWinded savedRegs gs initRegs initUc
