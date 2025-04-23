@@ -3,7 +3,7 @@ module Spec.Program
 import public Spec.Program.Sink
 import public Spec.Program.Loop
 import public Spec.Program.LinearBlock
-import public Spec.Program.Edges
+import public Spec.Program.ControlFlow
 
 %default total
 
@@ -18,25 +18,30 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
             -> (cLim : Nat)   -- complexity limit of expressions
             -> (uc : Nat)     -- count of undetermined Values, i.e. (JustV $ Undet ...)
             -> (ols : ListLoop n) -> Type where
-  Step : {n : _} -> {0 m : _}
-      -> {immSrc, delaSrc : _} -> {srcs : VectSource m n}
-      -> {cLim : _}
-      -> {uc : _}
-      -> {0 ols : _}
-      -> {0 finalRegs' : _}
-      -> (bs : VectBool m)
-      -> (sinkPrf : SinkIsValid immSrc srcs bs)
-      => let sinkR : ?; sinkR = sink immSrc srcs uc bs @{sinkPrf} in
+  Step : {n : _} -> {0 m : _} ->
+         {immSrc, delaSrc : _} -> {srcs : VectSource m n} ->
+         {cLim : _} ->
+         {uc : _} ->
+         {0 ols : _} ->
+         {0 finalRegs' : _} ->
+         (bs : VectBool m) ->
+         (sinkPrf : SinkIsValid immSrc srcs bs) =>
+         let sinkR : ?; sinkR = sink immSrc srcs uc bs @{sinkPrf} in
          let remSrcs' : ?; remSrcs' = snd $ append' delaSrc sinkR.remainedSrcs in
-         (loopDec : OpenLoopDecision sinkR.mergedSrc ols (hasUndet sinkR.mergedSrc.registers))
-      => let 0 windR : ?; windR = windContext sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
-         (closeDec : CloseLoopDecision windR.remainedSrcs windR.currentOls)
-      => (linBlk : LinearBlock cLim closeDec windR.currentSrc.registers finalRegs')
-      -> let 0 unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec @{getCanFinish linBlk} in
-         (edgeDec : EdgeDecision closeDec)
-      -> let 0 edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
-         Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls
-      -> Program immSrc delaSrc srcs cLim uc ols
+         (loopDec : OpenLoopDecision sinkR.mergedSrc ols (hasUndetI sinkR.mergedSrc.registers)) =>
+         let 0 windR : ?; windR = windContext sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
+         (closeDec : CloseLoopDecision windR.remainedSrcs windR.currentOls) =>
+         (linBlk : LinearBlock cLim closeDec windR.currentSrc.registers finalRegs') ->
+         let 0 unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec @{getCanFinish linBlk} in
+         -- such order may trigger a bit more filtering, but
+         -- we have better distribution over loop ends
+         -- TODO: maybe just generate Edge and condition at the same time, and only then check loop satisfiability
+         (edgeDec : EdgeDecision closeDec) ->
+         (varDec : VariantDecision closeDec finalRegs' edgeDec) =>
+         (condDec : ConditionDecision edgeDec varDec) =>
+         let 0 edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
+         Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls ->
+         Program immSrc delaSrc srcs cLim uc ols
   Finish : Program Nothing Nothing [] cLim uc []
   FinishAll : HasOneSource immSrc srcs => Program immSrc Nothing srcs cLim uc ols
 

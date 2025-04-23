@@ -1,0 +1,71 @@
+module Spec.Program.ControlFlow.Decision.Condition
+
+import public Spec.Program.Loop.Variant
+
+%default total
+
+public export
+data PrimaryPredicate : (vTy : VType) -> Type where
+  Less : PrimaryPredicate I
+  LessThan : PrimaryPredicate I
+  Equal : PrimaryPredicate I
+  LessThanOrEqual : PrimaryPredicate I
+  IsTrue : PrimaryPredicate B
+
+public export
+data Condition : {0 closeDec : CloseLoopDecision remSrcs ols} ->
+                 (varDec : VariantDecision closeDec finalRegs Condjmp) ->
+                 Type where
+  ConditionAny : {0 remSrcs : VectSource l n} ->
+                 {0 ols : ListLoop n} ->
+                 {0 hasVariantPrf : HasVariant finalRegs} ->
+                 PrimaryPredicate (getVType hasVariantPrf) ->
+                 Condition (VariantNoCloseCondjmp {remSrcs} {ols} @{hasVariantPrf})
+  ConditionDoClose : {0 hasLoopVariant : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll Condjmp} ->
+                     Nat -> PrimaryPredicate I ->
+                     Condition {closeDec = DoClose $ L savedRegs savedSrcs savedUc gs initRegs @{TheyAreWinded @{areWinded'}}}
+                               (VariantDoClose @{hasLoopVariant})
+  
+public export
+data ConditionDecision : {0 closeDec : CloseLoopDecision a b} ->
+                         (edgeDec : EdgeDecision closeDec) ->
+                         (varDec : VariantDecision closeDec finalRegs edgeDec) ->
+                         Type where
+  NoCondition : {0 varDec : VariantDecision closeDec finalRegs edgeDec} ->
+                NotCondjmp edgeDec =>
+                ConditionDecision edgeDec varDec
+  HasCondition : {0 varDec : VariantDecision closeDec finalRegs Condjmp} ->
+                 Condition varDec ->
+                 (neg : Bool) ->
+                 ConditionDecision Condjmp varDec
+
+public export
+record Result (n : Nat) where
+  constructor R
+  contImmSrc : MaybeSource n
+  contDelaSrc : MaybeSource n
+  contSrcsLen : Nat
+  contSrcs : VectSource contSrcsLen n
+
+-- now, make edges using
+-- EdgeDecision
+-- VariantDecision
+-- ConditionDecision
+public export
+makeEdges : {closeDec : CloseLoopDecision {n} _ _} ->
+            EdgeDecision closeDec ->
+            {l : _} ->
+            (srcs : VectSource l n) ->
+            (finalRegs : VectValue n) ->
+            Result n
+makeEdges Exit srcs finalRegs =
+  R Nothing Nothing _ srcs
+makeEdges {closeDec = NoClose} Jmp srcs finalRegs =
+  R Nothing Nothing _ (Src finalRegs :: srcs)
+makeEdges {closeDec = (DoClose _)} Jmp srcs finalRegs =
+  R Nothing Nothing _ srcs
+makeEdges {closeDec = NoClose} Condjmp srcs finalRegs =
+  R (Just $ Src finalRegs) (Just $ Src finalRegs) _ srcs
+makeEdges {closeDec = (DoClose _)} Condjmp srcs finalRegs =
+  R Nothing Nothing _ (Src finalRegs :: srcs)
+
