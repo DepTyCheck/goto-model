@@ -5,6 +5,9 @@ import public Spec.Program.Loop.Variant
 
 public export
 genVariantDecision : Fuel ->
+                     {n, l : _} ->
+                     {b : _} ->
+                     {a : VectSource l n} ->
                      (closeDec : CloseLoopDecision a b) ->
                      (finalRegs : VectValue n) ->
                      (edgeDec : EdgeDecision closeDec) ->

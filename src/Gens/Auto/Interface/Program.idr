@@ -37,6 +37,9 @@ genProgram : Fuel ->
               (a : CloseLoopDecision a1 a2) ->
               Gen MaybeEmpty $ EdgeDecision a) =>
              (Fuel ->
+              {n, l : _} ->
+              {a2 : _} ->
+              {a1 : VectSource l n} ->
               (a : CloseLoopDecision a1 a2) ->
               (b : VectValue t) ->
               (c : EdgeDecision a) ->
