@@ -6,11 +6,15 @@ import public Spec.Program.Loop.Variant
 
 public export
 data PrimaryPredicate : (vTy : VType) -> Type where
-  Less : PrimaryPredicate I
   LessThan : PrimaryPredicate I
   Equal : PrimaryPredicate I
   LessThanOrEqual : PrimaryPredicate I
   IsTrue : PrimaryPredicate B
+
+public export
+data PredicateConstant : PrimaryPredicate vTy -> Type where
+  NoConstant : PredicateConstant IsTrue
+  Constant : {0 p : PrimaryPredicate I} -> Nat -> PredicateConstant p
 
 public export
 data Condition : {0 closeDec : CloseLoopDecision remSrcs ols} ->
@@ -19,12 +23,14 @@ data Condition : {0 closeDec : CloseLoopDecision remSrcs ols} ->
   ConditionAny : {0 remSrcs : VectSource l n} ->
                  {0 ols : ListLoop n} ->
                  {0 hasVariantPrf : HasVariant finalRegs} ->
-                 PrimaryPredicate (getVType hasVariantPrf) ->
+                 (p : PrimaryPredicate (getVType hasVariantPrf)) ->
+                 PredicateConstant p ->
                  Condition (VariantNoCloseCondjmp {remSrcs} {ols} @{hasVariantPrf})
-  ConditionDoClose : {0 hasLoopVariant : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll Condjmp} ->
-                     Nat -> PrimaryPredicate I ->
+  ConditionDoClose : {0 hasLoopVariantPrf : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll Condjmp} ->
+                     (p : PrimaryPredicate I) ->
+                     PredicateConstant p ->
                      Condition {closeDec = DoClose $ L savedRegs savedSrcs savedUc gs initRegs @{TheyAreWinded @{areWinded'}}}
-                               (VariantDoClose @{hasLoopVariant})
+                               (VariantDoClose @{hasLoopVariantPrf})
   
 public export
 data ConditionDecision : {0 closeDec : CloseLoopDecision a b} ->

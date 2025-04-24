@@ -82,22 +82,60 @@ Show (CloseLoopDecision a b) where
   show NoClose = "no loop closing"
   show (DoClose _) = "closes loop"
 
--- TODO: when put in where clause after show Step, cannot find type of some implicit
+namespace Edge
+  public export
+  toIndex : HasVariant a -> Nat
+  toIndex Here = Z
+  toIndex (There x) = S (toIndex x)
+
+  namespace Loop
+    public export
+    toIndex : HasLoopVariant a b c d e -> Nat
+    toIndex Here = Z
+    toIndex (There x) = S (toIndex x)
+
 public export
-Show (EdgeDecision a) where
-  show Exit = "Exit"
-  show Jmp = "Jmp"
-  show Condjmp = "Condjmp"
+showCond : (regIdx : Nat) ->
+           (p : PrimaryPredicate vTy) ->
+           (PredicateConstant p) ->
+           (neg : Bool) ->
+           String
+-- Unary predicates
+showCond regIdx IsTrue NoConstant neg =
+  let negStr : String; negStr = if neg then "NOT " else "" in "\{negStr}r_\{show regIdx}"
+-- Binary predicates
+showCond regIdx p (Constant c) neg = "r_\{show regIdx} \{showPrimPred p neg} c"
+  where
+    showPrimPred : forall vTy . (p : PrimaryPredicate vTy) -> (neg : Bool) -> String
+    showPrimPred LessThan False = "LT"
+    showPrimPred Equal False = "EQ"
+    showPrimPred LessThanOrEqual False = "LE"
+    showPrimPred LessThan True = "GT"
+    showPrimPred Equal True = "EQ"
+    showPrimPred LessThanOrEqual True = "GE"
+    showPrimPred IsTrue _ = ""  -- impossible
+
+public export
+showEdge : (edgeDec : EdgeDecision closeDec) ->
+           (varDec : VariantDecision closeDec finalRegs edgeDec) ->
+           (condDec : ConditionDecision edgeDec varDec) ->
+           String
+showEdge Exit varDec NoCondition = "Exit"
+showEdge Jmp varDec NoCondition = "Jmp"
+showEdge Condjmp (VariantNoCloseCondjmp @{hasVariantPrf}) (HasCondition (ConditionAny p x) neg) =
+  "Condjmp \{showCond (toIndex hasVariantPrf) p x neg}"
+showEdge Condjmp (VariantDoClose @{hasLoopVariantPrf}) (HasCondition (ConditionDoClose p x) neg) =
+  "Condjmp \{showCond (toIndex hasLoopVariantPrf) p x neg}"
 
 public export
 Show (Program {n = S n'} immSrc delaSrc srcs cLim uc ols) where
-  show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec cont) = do
+  show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec @{varDec} @{condDec} cont) = do
     let sinkStr : String; sinkStr = show sink
     let loopDecStr : String; loopDecStr = show loopDec
     let pre : String; pre = "Available: \{show $ length bs}, bs: \{show bs} (\{sinkStr}, \{loopDecStr})"
 
     let closeDecStr : String; closeDecStr = show closeDec
-    let edgeDecStr : String; edgeDecStr = show edgeDec
+    let edgeStr : String; edgeDecStr = showEdge edgeDec varDec condDec
     let post : String; post = "\{edgeDecStr} (\{closeDecStr})"
 
     let ppBlk : ?; ppBlk = joinBy "\n" [pre, show linBlk, post]
