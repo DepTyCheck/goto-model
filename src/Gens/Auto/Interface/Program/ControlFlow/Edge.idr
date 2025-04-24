@@ -1,7 +1,7 @@
-module Gens.Auto.Interface.Program.Edges
+module Gens.Auto.Interface.Program.ControlFlow.Edge
 
 import public Gens.Auto.Interface.Common
-import public Spec.Program.Edges
+import public Spec.Program.ControlFlow.Decision.Edge
 
 public export
 genEdgeDecision : Fuel
