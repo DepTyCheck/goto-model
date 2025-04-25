@@ -38,6 +38,7 @@ namespace DoClose
                         (edgeDec : EdgeDecision closeDec) ->
                         Type where
     Here : {0 closeDec : CloseLoopDecision remSrcs ols} ->
+           {isWinded' : IsWinded' sr g ir curUc uc} ->
            {0 areWinded'' : AreWinded' savedRegs gs initRegs uc initUc} ->
            {0 edgeDec : EdgeDecision closeDec} ->
            IsMonotonic fr =>
@@ -72,9 +73,8 @@ data VariantDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                           {0 canFinish : CanFinish NoClose finalRegs} ->
                           HasVariant finalRegs =>
                           VariantDecision {remSrcs} {ols} NoClose finalRegs canFinish Condjmp
-  VariantDoClose : {initUc : _} ->
-                   {0 areWinded' : AreWinded' {n} savedRegs gs initRegs 0 initUc} ->
+  VariantDoClose : {0 areWinded' : AreWinded' {n} savedRegs gs initRegs 0 initUc} ->
                    {0 edgeDec : EdgeDecision (DoClose $ L savedRegs savedSrcs savedUc gs initRegs @{TheyAreWinded @{areWinded'}})} ->
-                   HasLoopVariant {initUc} {closeDec = DoClose ?} initRegs areWinded' finalRegs canUnwindAll edgeDec =>
+                   HasLoopVariant {closeDec = DoClose ?} initRegs areWinded' finalRegs canUnwindAll edgeDec =>
                    VariantDecision (DoClose ?) finalRegs (MustFinishLoop @{canUnwindAll} @{so}) edgeDec
 
