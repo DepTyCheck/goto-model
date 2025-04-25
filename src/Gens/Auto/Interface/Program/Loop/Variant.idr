@@ -10,6 +10,7 @@ genVariantDecision : Fuel ->
                      {a : VectSource l n} ->
                      (closeDec : CloseLoopDecision a b) ->
                      (finalRegs : VectValue n) ->
+                     (canFinish : CanFinish closeDec finalRegs) ->
                      (edgeDec : EdgeDecision closeDec) ->
-                     Gen MaybeEmpty $ VariantDecision closeDec finalRegs edgeDec
+                     Gen MaybeEmpty $ VariantDecision closeDec finalRegs canFinish edgeDec
 

@@ -37,7 +37,7 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
          -- we have better distribution over loop ends
          -- TODO: maybe just generate Edge and condition at the same time, and only then check loop satisfiability
          (edgeDec : EdgeDecision closeDec) ->
-         (varDec : VariantDecision closeDec finalRegs' edgeDec) =>
+         (varDec : VariantDecision closeDec finalRegs' (getCanFinish linBlk) edgeDec) =>
          (condDec : ConditionDecision edgeDec varDec) =>
          let 0 edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
          Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls ->

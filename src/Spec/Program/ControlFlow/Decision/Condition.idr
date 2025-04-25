@@ -18,14 +18,16 @@ data PredicateConstant : PrimaryPredicate vTy -> Type where
 
 public export
 data Condition : {0 closeDec : CloseLoopDecision remSrcs ols} ->
-                 (varDec : VariantDecision closeDec finalRegs Condjmp) ->
+                 {0 canFinish : CanFinish closeDec finalRegs} ->
+                 (varDec : VariantDecision closeDec finalRegs canFinish Condjmp) ->
                  Type where
   ConditionAny : {0 remSrcs : VectSource l n} ->
                  {0 ols : ListLoop n} ->
                  {0 hasVariantPrf : HasVariant finalRegs} ->
+                 {0 canFinish : CanFinish NoClose finalRegs} ->
                  (p : PrimaryPredicate (getVType hasVariantPrf)) ->
                  PredicateConstant p ->
-                 Condition (VariantNoCloseCondjmp {remSrcs} {ols} @{hasVariantPrf})
+                 Condition {canFinish} (VariantNoCloseCondjmp {remSrcs} {ols} @{hasVariantPrf})
   ConditionDoClose : {0 hasLoopVariantPrf : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll Condjmp} ->
                      (p : PrimaryPredicate I) ->
                      PredicateConstant p ->
@@ -34,13 +36,14 @@ data Condition : {0 closeDec : CloseLoopDecision remSrcs ols} ->
   
 public export
 data ConditionDecision : {0 closeDec : CloseLoopDecision a b} ->
+                         {0 canFinish : CanFinish closeDec finalRegs} ->
                          (edgeDec : EdgeDecision closeDec) ->
-                         (varDec : VariantDecision closeDec finalRegs edgeDec) ->
+                         (varDec : VariantDecision closeDec finalRegs canFinish edgeDec) ->
                          Type where
-  NoCondition : {0 varDec : VariantDecision closeDec finalRegs edgeDec} ->
+  NoCondition : {0 varDec : VariantDecision closeDec finalRegs canFinish edgeDec} ->
                 NotCondjmp edgeDec =>
                 ConditionDecision edgeDec varDec
-  HasCondition : {0 varDec : VariantDecision closeDec finalRegs Condjmp} ->
+  HasCondition : {0 varDec : VariantDecision closeDec finalRegs canFinish Condjmp} ->
                  Condition varDec ->
                  (neg : Bool) ->
                  ConditionDecision Condjmp varDec
