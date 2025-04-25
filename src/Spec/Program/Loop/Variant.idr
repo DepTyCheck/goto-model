@@ -1,7 +1,7 @@
 module Spec.Program.Loop.Variant
 
 import public Spec.Context.Loop.Misc
-import public Spec.Program.Loop.Decision.Close
+import public Spec.Program.LinearBlock
 import public Spec.Program.ControlFlow.Decision.Edge
 
 %default total
@@ -62,17 +62,19 @@ namespace DoClose
 public export
 data VariantDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                        (finalRegs : VectValue n) -> 
+                       (canFinish : CanFinish closeDec finalRegs) ->
                        (edgeDec : EdgeDecision closeDec) ->
                        Type where
   NoVariant : NotCondjmp edgeDec =>
-              VariantDecision NoClose finalRegs edgeDec
+              VariantDecision NoClose finalRegs canFinish edgeDec
   VariantNoCloseCondjmp : {0 remSrcs : VectSource l n} ->
                           {0 ols : ListLoop n} ->
+                          {0 canFinish : CanFinish NoClose finalRegs} ->
                           HasVariant finalRegs =>
-                          VariantDecision {remSrcs} {ols} NoClose finalRegs Condjmp
+                          VariantDecision {remSrcs} {ols} NoClose finalRegs canFinish Condjmp
   VariantDoClose : {initUc : _} ->
                    {0 areWinded' : AreWinded' {n} savedRegs gs initRegs 0 initUc} ->
                    {0 edgeDec : EdgeDecision (DoClose $ L savedRegs savedSrcs savedUc gs initRegs @{TheyAreWinded @{areWinded'}})} ->
                    HasLoopVariant {initUc} {closeDec = DoClose ?} initRegs areWinded' finalRegs canUnwindAll edgeDec =>
-                   VariantDecision (DoClose ?) finalRegs edgeDec
+                   VariantDecision (DoClose ?) finalRegs (MustFinishLoop @{canUnwindAll} @{so}) edgeDec
 
