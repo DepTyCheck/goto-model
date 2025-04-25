@@ -8,7 +8,7 @@ import public Spec.Program.ControlFlow.Decision.Edge
 
 namespace NoClose
   public export
-  data HasVariant : (finalRegs : VectValue n) -> Type where
+  data HasVariant : (finalRegs : VectValue k) -> Type where
     Here : HasVariant ((JustV {isDet = False} vExpr) :: finalRegs)
     There : HasVariant finalRegs -> HasVariant (fr :: finalRegs)
 
@@ -31,9 +31,9 @@ isUndetIDependsOnlyOnSelf _ _ = False
 namespace DoClose
   public export
   data HasLoopVariant : {0 closeDec : CloseLoopDecision remSrcs ols} ->
-                        (initRegs : VectValue n) ->
+                        (initRegs : VectValue k) ->
                         (areWinded' : AreWinded' savedRegs gs initRegs uc initUc) ->
-                        (finalRegs : VectValue n) ->
+                        (finalRegs : VectValue k) ->
                         (canUnwindAll : CanUnwindAll initRegs gs finalRegs) ->
                         (edgeDec : EdgeDecision closeDec) ->
                         Type where
@@ -70,5 +70,9 @@ data VariantDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                           {0 ols : ListLoop n} ->
                           HasVariant finalRegs =>
                           VariantDecision {remSrcs} {ols} NoClose finalRegs Condjmp
-  VariantDoClose : HasLoopVariant {closeDec = DoClose ?} initRegs areWinded' finalRegs canUnwindAll edgeDec =>
-                   VariantDecision (DoClose $ L savedRegs savedSrcs savedUc gs initRegs @{TheyAreWinded @{areWinded'}}) finalRegs edgeDec
+  VariantDoClose : {initUc : _} ->
+                   {0 areWinded' : AreWinded' {n} savedRegs gs initRegs 0 initUc} ->
+                   {0 edgeDec : EdgeDecision (DoClose $ L savedRegs savedSrcs savedUc gs initRegs @{TheyAreWinded @{areWinded'}})} ->
+                   HasLoopVariant {initUc} {closeDec = DoClose ?} initRegs areWinded' finalRegs canUnwindAll edgeDec =>
+                   VariantDecision (DoClose ?) finalRegs edgeDec
+
