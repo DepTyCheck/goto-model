@@ -60,7 +60,7 @@ namespace DoClose
                            edgeDec
 
 public export
-data VariantDecision : (closeDec : CloseLoopDecision remSrcs ols) ->
+data VariantDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                        (finalRegs : VectValue n) -> 
                        (edgeDec : EdgeDecision closeDec) ->
                        Type where
