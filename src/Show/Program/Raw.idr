@@ -117,7 +117,7 @@ showCond regIdx p (Constant c) neg = "r_\{show regIdx} \{showPrimPred p neg} c"
 
 public export
 showEdge : (edgeDec : EdgeDecision closeDec) ->
-           (varDec : VariantDecision closeDec finalRegs edgeDec) ->
+           (varDec : VariantDecision closeDec finalRegs canFinish edgeDec) ->
            (condDec : ConditionDecision edgeDec varDec) ->
            String
 showEdge Exit varDec NoCondition = "Exit"
