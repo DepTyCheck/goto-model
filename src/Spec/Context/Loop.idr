@@ -17,8 +17,8 @@ namespace Guarantee
   %name VectGuarantee gs
 
   public export
-  data IsWindedWithGValue' : (sr : Value) -> {-postR-}Value -> {-preUc-}Nat
-                          -> {-postUc-}Nat -> Type where
+  data IsWindedWithGValue' : (sr : Value) -> {-postR-}Value -> {-preUc-}Nat ->
+                             {-postUc-}Nat -> Type where
     [search sr]
     IsWindedUndet' : IsWindedWithGValue' (JustV {vTy} {isDet = False} vExpr) (JustV $ Undet vTy uc) uc (S uc)
     IsWindedDet' : IsWindedWithGValue' (JustV {isDet = True} vExpr) (JustV vExpr) uc uc
@@ -33,17 +33,17 @@ namespace Guarantee
     IsWindedGNothing' : IsWinded' v GNothing Unkwn uc uc
 
   public export
-  data AreWinded' : (savedRegs : VectValue n) -> (gs : VectGuarantee n)
-                 -> {-initRegs-}VectValue n -> {-curUc-}Nat -> {-initUc-}Nat -> Type where
+  data AreWinded' : (savedRegs : VectValue n) -> (gs : VectGuarantee n) ->
+                    {-initRegs-}VectValue n -> {-curUc-}Nat -> {-initUc-}Nat -> Type where
     [search savedRegs gs]
     AreWindedBase' : AreWinded' [] [] [] uc uc
-    AreWindedStep' : AreWinded' savedRegs gs initRegs curUc' uc
-                  -> IsWinded' sr g ir curUc curUc'
-                  => AreWinded' (sr :: savedRegs) (g :: gs) (ir :: initRegs) curUc uc
+    AreWindedStep' : AreWinded' savedRegs gs initRegs curUc' uc ->
+                     IsWinded' sr g ir curUc curUc' =>
+                     AreWinded' (sr :: savedRegs) (g :: gs) (ir :: initRegs) curUc uc
 
   public export
-  data AreWinded : (savedRegs : VectValue n) -> (gs : VectGuarantee n)
-                -> {-initRegs-}VectValue n -> {-initUc-}Nat -> Type where
+  data AreWinded : (savedRegs : VectValue n) -> (gs : VectGuarantee n) ->
+                   {-initRegs-}VectValue n -> {-initUc-}Nat -> Type where
     [search savedRegs gs]
     TheyAreWinded : AreWinded' savedRegs gs initRegs 0 initUc => AreWinded savedRegs gs initRegs initUc
 
@@ -58,9 +58,9 @@ namespace Guarantee
   public export
   data CanUnwindAll : (initRegs : VectValue n) -> (gs : VectGuarantee n) -> (finalRegs : VectValue n) -> Type where
     CanUnwindAllBase : CanUnwindAll [] [] []
-    CanUnwindAllStep : CanUnwindAll initRegs gs finalRegs
-                    -> CanUnwind ir g fr
-                    => CanUnwindAll (ir :: initRegs) (g :: gs) (fr :: finalRegs)
+    CanUnwindAllStep : CanUnwindAll initRegs gs finalRegs ->
+                       CanUnwind ir g fr =>
+                       CanUnwindAll (ir :: initRegs) (g :: gs) (fr :: finalRegs)
 
 -- When loop starts, we save the current context and create a new one
 -- For simplicity, we do not merge any free sources or sources from outer loops during the current loop
