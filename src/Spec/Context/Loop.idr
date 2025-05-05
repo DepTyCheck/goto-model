@@ -37,7 +37,8 @@ namespace Guarantee
                     {-initRegs-}VectValue n -> {-curUc-}Nat -> {-initUc-}Nat -> Type where
     [search savedRegs gs]
     AreWindedBase' : AreWinded' [] [] [] uc uc
-    AreWindedStep' : AreWinded' savedRegs gs initRegs curUc' uc ->
+    AreWindedStep' : {curUc' : _} ->
+                     AreWinded' savedRegs gs initRegs curUc' uc ->
                      IsWinded' sr g ir curUc curUc' =>
                      AreWinded' (sr :: savedRegs) (g :: gs) (ir :: initRegs) curUc uc
 
@@ -45,7 +46,7 @@ namespace Guarantee
   data AreWinded : (savedRegs : VectValue n) -> (gs : VectGuarantee n) ->
                    {-initRegs-}VectValue n -> {-initUc-}Nat -> Type where
     [search savedRegs gs]
-    TheyAreWinded : AreWinded' savedRegs gs initRegs 0 initUc => AreWinded savedRegs gs initRegs initUc
+    TheyAreWinded : {initUc : _} -> AreWinded' savedRegs gs initRegs 0 initUc => AreWinded savedRegs gs initRegs initUc
 
   -- TODO: causes fake filtration. CanUnwind must be built upon IsWinded',
   -- but Idris cannot handle it and further usage causes fighting with compiler bugs

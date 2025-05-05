@@ -66,6 +66,7 @@ data VariantDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                        (canFinish : CanFinish closeDec finalRegs) ->
                        (edgeDec : EdgeDecision closeDec) ->
                        Type where
+                         {-
   NoVariant : NotCondjmp edgeDec =>
               VariantDecision NoClose finalRegs canFinish edgeDec
   VariantNoCloseCondjmp : {0 remSrcs : VectSource l n} ->
@@ -73,6 +74,7 @@ data VariantDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                           {0 canFinish : CanFinish NoClose finalRegs} ->
                           HasVariant finalRegs =>
                           VariantDecision {remSrcs} {ols} NoClose finalRegs canFinish Condjmp
+                          -}
   VariantDoClose : {0 areWinded' : AreWinded' {n} savedRegs gs initRegs 0 initUc} ->
                    {0 edgeDec : EdgeDecision $ DoClose ?} ->
                    HasLoopVariant {closeDec = DoClose ?} initRegs areWinded' finalRegs canUnwindAll edgeDec =>
