@@ -5,7 +5,12 @@ import public Spec.Program.ControlFlow.Decision.Condition
 
 public export
 genConditionDecision : Fuel ->
-                       {closeDec : CloseLoopDecision a b} ->
+                       {n : _} ->
+                       {l : _} ->
+                       {a : VectSource l n} ->
+                       {b : ListLoop n} ->
+                       {regs : VectValue n} ->
+                       {closeDec : CloseLoopDecision {n} a b} ->
                        {canFinish : CanFinish closeDec regs} ->
                        (edgeDec : EdgeDecision closeDec) ->
                        (varDec : VariantDecision closeDec regs canFinish edgeDec) ->
