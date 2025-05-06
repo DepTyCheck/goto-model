@@ -104,7 +104,7 @@ showCond : (regIdx : Nat) ->
 showCond regIdx IsTrue NoConstant neg =
   let negStr : String; negStr = if neg then "NOT " else "" in "\{negStr}r_\{show regIdx}"
 -- Binary predicates
-showCond regIdx p (Constant c) neg = "r_\{show regIdx} \{showPrimPred p neg} c"
+showCond regIdx p (Constant c) neg = "r_\{show regIdx} \{showPrimPred p neg} \{show c}"
   where
     showPrimPred : forall vTy . (p : PrimaryPredicate vTy) -> (neg : Bool) -> String
     showPrimPred LessThan False = "LT"
