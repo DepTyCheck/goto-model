@@ -26,6 +26,11 @@ isUndet : Value -> Bool
 isUndet = not . isDet
 
 public export
+hasUndet : VectValue n -> Bool
+hasUndet [] = False
+hasUndet (v :: vs) = isUndet v || hasUndet vs
+
+public export
 isUndetI : Value -> Bool
 isUndetI v = isUndet v && hasVTy I v
 

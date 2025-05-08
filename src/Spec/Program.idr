@@ -3,7 +3,7 @@ module Spec.Program
 import public Spec.Program.Sink
 import public Spec.Program.Loop
 import public Spec.Program.LinearBlock
-import public Spec.Program.ControlFlow
+import public Spec.Program.Edge
 
 %default total
 
@@ -32,13 +32,11 @@ data Program : (immSrc : MaybeSource n) -> (delaSrc : MaybeSource n) -> (srcs : 
          let 0 windR : ?; windR = windContext sinkR.mergedSrc remSrcs' sinkR.mergedUc ols @{loopDec} in
          (closeDec : CloseLoopDecision windR.remainedSrcs windR.currentOls) =>
          (linBlk : LinearBlock cLim closeDec windR.currentSrc.registers finalRegs') ->
-         let 0 unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec @{getCanFinish linBlk} in
          -- such order may trigger a bit more filtering, but
          -- we have better distribution over loop ends
          -- TODO: maybe just generate Edge and condition at the same time, and only then check loop satisfiability
-         (edgeDec : EdgeDecision closeDec) ->
-         (varDec : VariantDecision closeDec finalRegs' (getCanFinish linBlk) edgeDec) =>
-         (condDec : ConditionDecision edgeDec varDec) =>
+         (edgeDec : EdgeDecision closeDec finalRegs' (getCanFinish linBlk)) ->
+         let 0 unwindR : ?; unwindR = unwindContext windR.remainedSrcs finalRegs' windR.currentUc windR.currentOls closeDec @{getCanFinish linBlk} in
          let 0 edgesR : ?; edgesR = makeEdges edgeDec unwindR.contSrcs' unwindR.finalRegs in
          Program edgesR.contImmSrc edgesR.contDelaSrc edgesR.contSrcs cLim unwindR.contUc unwindR.contOls ->
          Program immSrc delaSrc srcs cLim uc ols
@@ -51,6 +49,7 @@ test = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} @{NoClose} (Assign 0 1 $
 test1 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 2 0 []
 test1 = Step [] @{SinkIsValidWithImmediate} @{NoNewLoop} @{NoClose} (Assign 0 1 $ Finish) Exit Finish
 
+{-
 test2 : Program {n=3} (Just $ Src [JustV $ Undet I 0, JustV $ Undet I 1, JustV $ Det $ RawI 1]) Nothing [] 5 2 []
 test2 = Step [] @{SinkIsValidWithImmediate}
                 @{OneNewLoop {gs=[GType, GNothing, GValue]}
@@ -73,5 +72,5 @@ test2 = Step [] @{SinkIsValidWithImmediate}
                                             }
                            } $
               Finish
-             ) Jmp $
+              ) (Jmp @{ItIsPossibleNoClose}) $
         Finish

@@ -63,7 +63,7 @@ run = do
   evalRandomT randomGen $ Data.List.Lazy.for_ (fromList [(S Z)..testCount]) $ \k => do
     startMoment <- lift $ liftIO $ clockTime clock
     -- test' <- unGenLC h $ genSink (limit f) {n=5} Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]]
-    test' <- unGenLC h $ genProgram (limit f) @{genSink} @{genOpenLoopDecision} @{genCloseLoopDecision} @{genLinearBlock} @{genEdgeDecision} @{genVariantDecision} @{genConditionDecision} {n=5} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]] cLim 3 []
+    test' <- unGenLC h $ genProgram (limit f) @{genSink} @{genOpenLoopDecision} @{genCloseLoopDecision} @{genLinearBlock} @{genEdgeDecision} {n=5} Nothing Nothing [Src [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]] cLim 3 []
     -- test' <- unGenLC h $ genLinearBlock (limit f) cLim [l] [JustV (Undet I 0), JustV (Undet I 1), JustV (Det $ RawI 1), JustV (Det $ RawB True), JustV (Undet B 2)]
     finishMoment <- lift $ liftIO $ clockTime clock
 

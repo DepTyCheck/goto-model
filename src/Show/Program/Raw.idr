@@ -82,18 +82,6 @@ Show (CloseLoopDecision a b) where
   show NoClose = "no loop closing"
   show (DoClose _) = "closes loop"
 
-namespace Edge
-  public export
-  toIndex : HasVariant a -> Nat
-  toIndex Here = Z
-  toIndex (There x) = S (toIndex x)
-
-  namespace Loop
-    public export
-    toIndex : HasLoopVariant a b c d e -> Nat
-    toIndex Here = Z
-    toIndex (There x) = S (toIndex x)
-
 public export
 showCond : (regIdx : Nat) ->
            (p : PrimaryPredicate vTy) ->
@@ -116,26 +104,29 @@ showCond regIdx p (Constant c) neg = "r_\{show regIdx} \{showPrimPred p neg} \{s
     showPrimPred IsTrue _ = ""  -- impossible
 
 public export
-showEdge : (edgeDec : EdgeDecision closeDec) ->
-           (varDec : VariantDecision closeDec finalRegs canFinish edgeDec) ->
-           (condDec : ConditionDecision edgeDec varDec) ->
-           String
-showEdge Exit varDec NoCondition = "Exit"
-showEdge Jmp varDec NoCondition = "Jmp"
-showEdge Condjmp (VariantNoCloseCondjmp @{hasVariantPrf}) (HasCondition (ConditionAny p x) neg) =
-  "Condjmp \{showCond (toIndex hasVariantPrf) p x neg}"
-showEdge Condjmp (VariantDoClose @{hasLoopVariantPrf}) (HasCondition (ConditionDoClose p x) neg) =
-  "Condjmp \{showCond (toIndex hasLoopVariantPrf) p x neg}"
+showEdge : (edgeDec : EdgeDecision closeDec finalRegs canFinish) -> String
+showEdge Exit = "Exit"
+showEdge Jmp = "Jmp"
+showEdge (Condjmp (ConditionAny condRegIdx pp x neg)) = "Condjmp \{showCond (toIndex condRegIdx) pp x neg}"
+  where
+    toIndex : HasUndet vs -> Nat
+    toIndex HasUndetHere = Z
+    toIndex (HasUndetThere prf') = S (toIndex prf')
+showEdge (Condjmp (ConditionVar varRegIdx pp x neg)) = "Condjmp \{showCond (toIndex varRegIdx) pp x neg}"
+  where
+    toIndex : HasLoopVariant a b c d -> Nat
+    toIndex Here = Z
+    toIndex (There prf') = S (toIndex prf')
 
 public export
 Show (Program {n = S n'} immSrc delaSrc srcs cLim uc ols) where
-  show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec @{varDec} @{condDec} cont) = do
+  show (Step bs @{sink} @{loopDec} linBlk @{closeDec} edgeDec cont) = do
     let sinkStr : String; sinkStr = show sink
     let loopDecStr : String; loopDecStr = show loopDec
     let pre : String; pre = "Available: \{show $ length bs}, bs: \{show bs} (\{sinkStr}, \{loopDecStr})"
 
     let closeDecStr : String; closeDecStr = show closeDec
-    let edgeStr : String; edgeDecStr = showEdge edgeDec varDec condDec
+    let edgeStr : String; edgeDecStr = showEdge edgeDec
     let post : String; post = "\{edgeDecStr} (\{closeDecStr})"
 
     let ppBlk : ?; ppBlk = joinBy "\n" [pre, show linBlk, post]

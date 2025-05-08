@@ -35,27 +35,9 @@ genProgram : Fuel ->
               {a2 : _} ->
               {a1 : VectSource l n} ->
               (a : CloseLoopDecision a1 a2) ->
-              Gen MaybeEmpty $ EdgeDecision a) =>
-             (Fuel ->
-              {n, l : _} ->
-              {a2 : _} ->
-              {a1 : VectSource l n} ->
-              (a : CloseLoopDecision a1 a2) ->
               (b : VectValue n) ->
               (c : CanFinish a b) ->
-              (d : EdgeDecision a) ->
-              Gen MaybeEmpty $ VariantDecision a b c d) =>
-             (Fuel ->
-              {n : _} ->
-              {l : _} ->
-              {a1 : VectSource l n} ->
-              {a2 : ListLoop n} ->
-              {e : VectValue n} ->
-              {a : CloseLoopDecision a1 a2} ->
-              {b : CanFinish a e} ->
-              (c : EdgeDecision a) ->
-              (d : VariantDecision a e b c) ->
-              Gen MaybeEmpty $ ConditionDecision c d) =>
+              Gen MaybeEmpty $ EdgeDecision a b c) =>
              {m, n : Nat} ->
              (immSrc : MaybeSource n) ->
              (delaSrc : MaybeSource n) ->
