@@ -29,7 +29,7 @@ namespace Exit
 namespace Jmp
   public export
   data IsJmpPossible : (closeDec : CloseLoopDecision remSrcs ols) -> Type where
-    ItIsPossibleNoClose : IsJmpPossible {ols=[]} NoClose
+    ItIsPossibleNoClose : IsJmpPossible NoClose
     -- TODO: it is possible to close loop with a jmp instruction,
     --   but we need to check if there's a source depending on a loop variant
 
