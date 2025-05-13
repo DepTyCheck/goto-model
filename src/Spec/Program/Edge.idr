@@ -45,6 +45,7 @@ namespace Condjmp
   isUndetIDependsOnlyOnSelf Unkwn                 @{IsWindedGNothing'}                 fr = False
   isUndetIDependsOnlyOnSelf _ _ = False
 
+  public export
   isLoopVariantAt : (i : Fin n) ->
                   (initRegs : VectValue n) ->
                   AreWinded' savedRegs gs initRegs uc initUc =>
