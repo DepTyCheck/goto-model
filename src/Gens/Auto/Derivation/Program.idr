@@ -7,7 +7,7 @@ import public Gens.Auto.Interface.Program
 
 GenOrderTuning "Step".dataCon where
   isConstructor = itIsConstructor
-  deriveFirst _ _ = [10, 11, 12, 13, 14, 15, 16, 17]
+  deriveFirst _ _ = [10, 11, 12, 13, 14, 15]
 
 Gens.Auto.Interface.Program.genProgram = deriveGen
 
