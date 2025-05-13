@@ -70,9 +70,19 @@ data HasType : (vTy : VType) -> (cLim : Nat) -> (vs : VectValue n) -> c `LTE` cL
   HasTypeThere : HasType vTy cLim vs' @{ltePrf} v -> HasType vTy cLim (v1 :: vs') @{ltePrf} v
 
 public export
+data HasTypeAt : (i : Fin n) -> (vTy : VType) -> (vs : VectValue n) -> Type where
+  HasTypeAtHere : HasTypeAt FZ vTy ((JustV {vTy} vExpr) :: vs)
+  HasTypeAtThere : HasTypeAt i' vTy vs -> HasTypeAt (FS i') vTy (v :: vs)
+
+public export
 data HasUndet : (vs : VectValue n) -> Type where
   HasUndetHere : HasUndet ((JustV {isDet = False} vExpr) :: vs)
   HasUndetThere : HasUndet vs -> HasUndet (v :: vs)
+
+public export
+data HasUndetAt : (i : Fin n) -> (vs : VectValue n) -> Type where
+  HasUndetAtHere : HasUndetAt FZ ((JustV {isDet = False} vExpr) :: vs)
+  HasUndetAtThere : HasUndetAt i' vs -> HasUndetAt (FS i') (v :: vs)
 
 public export
 data ReplaceAt : (i : Fin n) -> (v : Value) -> (vs : VectValue n) -> VectValue n -> Type where

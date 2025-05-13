@@ -107,16 +107,8 @@ public export
 showEdge : (edgeDec : EdgeDecision closeDec finalRegs canFinish) -> String
 showEdge Exit = "Exit"
 showEdge Jmp = "Jmp"
-showEdge (Condjmp (ConditionAny condRegIdx pp x neg)) = "Condjmp \{showCond (toIndex condRegIdx) pp x neg}"
-  where
-    toIndex : HasUndet vs -> Nat
-    toIndex HasUndetHere = Z
-    toIndex (HasUndetThere prf') = S (toIndex prf')
-showEdge (Condjmp (ConditionVar varRegIdx pp x neg)) = "Condjmp \{showCond (toIndex varRegIdx) pp x neg}"
-  where
-    toIndex : HasLoopVariant a b c d -> Nat
-    toIndex Here = Z
-    toIndex (There prf') = S (toIndex prf')
+showEdge (Condjmp $ ConditionAny regIdx pp c neg) = "Condjmp \{showCond (finToNat regIdx) pp c neg}"
+showEdge (Condjmp $ ConditionVar regIdx pp c neg) = "Condjmp \{showCond (finToNat regIdx) pp c neg}"
 
 public export
 Show (Program {n = S n'} immSrc delaSrc srcs cLim uc ols) where

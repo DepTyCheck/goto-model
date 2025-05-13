@@ -1,34 +1,37 @@
 module Spec.Context.Source
 
 import public Spec.Value
+import public Spec.Context.Condition
 import public Control.Monad.State
 
 public export
 data Source : Nat -> Type where
-  Src : VectValue n -> Source n
+  Src : (regs : VectValue n) -> MaybeConData regs -> Source n
 
 %name Source src
 
 public export
 (.registers) : Source n -> VectValue n
-(.registers) (Src vs) = vs
+(.registers) (Src vs mcd) = vs
 
-public export
-data MaybeSource : Nat -> Type where
-  Nothing : MaybeSource n
-  Just : Source n -> MaybeSource n
+namespace Maybe
+  public export
+  data MaybeSource : Nat -> Type where
+    Nothing : MaybeSource n
+    Just : Source n -> MaybeSource n
 
-public export
-data VectSource : Nat -> Nat -> Type where
-  Nil : VectSource 0 n
-  (::) : Source n -> VectSource m n -> VectSource (S m) n
+namespace Vect
+  public export
+  data VectSource : Nat -> Nat -> Type where
+    Nil : VectSource 0 n
+    (::) : Source n -> VectSource m n -> VectSource (S m) n
 
-%name VectSource srcs
+  %name VectSource srcs
 
-public export
-foldr : (Source n -> acc -> acc) -> acc -> VectSource m n -> acc
-foldr f x [] = x
-foldr f x (src :: srcs) = f src (foldr f x srcs)
+  public export
+  foldr : (Source n -> acc -> acc) -> acc -> VectSource m n -> acc
+  foldr f x [] = x
+  foldr f x (src :: srcs) = f src (foldr f x srcs)
 
 public export
 data HasOneSource : MaybeSource n -> VectSource m n -> Type where
@@ -105,12 +108,12 @@ mergeValues (JustV {vTy=vTy1} {isDet=isDet1} {c=c1} vExpr1) (JustV {vTy=vTy2} {i
 
 public export
 mergeStep' : IsSucc k => VectSource k (S n) -> StateT Bool (State Nat) (Value, VectSource k n)
-mergeStep' @{ItIsSucc} [Src (v :: vs)] = pure (v, [Src vs])
-mergeStep' @{ItIsSucc} ((Src (v :: vs)) :: src :: srcs) = do
+mergeStep' @{ItIsSucc} [Src (v :: vs) _] = pure (v, [Src vs Nothing])
+mergeStep' @{ItIsSucc} ((Src (v :: vs) _) :: src :: srcs) = do
   uc <- lift get
   (merged', rest) <- mergeStep' (src :: srcs)
   merged <- mergeValues v merged' uc
-  pure (merged, Src vs :: rest)
+  pure (merged, Src vs Nothing :: rest)
 
 public export
 mergeStep : IsSucc k => VectSource k (S n) -> State Nat (Value, VectSource k n)
@@ -118,11 +121,11 @@ mergeStep = (evalStateT False) . mergeStep'
 
 public export
 merge' : {n : _} -> IsSucc k => VectSource k n -> State Nat $ Source n
-merge' {n = 0} srcs = pure $ Src []
+merge' {n = 0} srcs = pure $ Src [] Nothing
 merge' {n = S n'} @{ItIsSucc} (src :: srcs) = do
   (mergedZero, rest) <- mergeStep (src :: srcs)
-  Src mergedRest <- merge' rest
-  pure $ Src $ mergedZero :: mergedRest
+  Src mergedRest _ <- merge' rest
+  pure $ Src (mergedZero :: mergedRest) Nothing
 
 public export
 merge : {n : _} -> IsSucc k => VectSource k n -> (uc : Nat) -> (Source n, Nat)

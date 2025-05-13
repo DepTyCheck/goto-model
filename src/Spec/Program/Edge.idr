@@ -45,106 +45,67 @@ namespace Condjmp
   isUndetIDependsOnlyOnSelf Unkwn                 @{IsWindedGNothing'}                 fr = False
   isUndetIDependsOnlyOnSelf _ _ = False
 
-  public export
-  data HasLoopVariant : (initRegs : VectValue k) ->
-                        (areWinded' : AreWinded' savedRegs gs initRegs uc initUc) ->
-                        (finalRegs : VectValue k) ->
-                        (canUnwindAll : CanUnwindAll initRegs gs finalRegs) ->
-                        Type where
-    Here : {0 areWinded'' : AreWinded' savedRegs gs initRegs uc initUc} ->
-           IsMonotonic fr =>
-           So (isUndetIDependsOnlyOnSelf ir @{isWinded'} fr) =>
-           HasLoopVariant (ir :: initRegs)
-                          (AreWindedStep' @{isWinded'} areWinded'')
-                          (fr :: finalRegs)
-                          (CanUnwindAllStep @{canUnwind} canUnwindAll')
-    There : HasLoopVariant initRegs
-                           areWinded''
-                           finalRegs
-                           canUnwindAll' ->
-            HasLoopVariant (ir :: initRegs)
-                           (AreWindedStep' @{isWinded'} areWinded'')
-                           (fr :: finalRegs)
-                           (CanUnwindAllStep @{canUnwind} canUnwindAll')
-
-  public export
-  data IsCondjmpPossible : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
-                           (finalRegs : VectValue n) ->
-                           (canFinish : CanFinish closeDec finalRegs) ->
-                           Type where
-    ItIsPossibleNoClose : So (hasUndet finalRegs) =>
-                          IsCondjmpPossible {remSrcs} {ols} NoClose finalRegs canFinish
-    ItIsPossibleDoCloseWithVariant : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll =>
-                                     IsCondjmpPossible (DoClose {n} {ols} $ L savedRegs
-                                                                              savedSrcs
-                                                                              savedUc
-                                                                              gs
-                                                                              initRegs
-                                                                              @{TheyAreWinded @{areWinded'}})
-                                                       finalRegs
-                                                       (MustFinishLoop @{canUnwindAll} @{so})
-    -- TODO: it is possible to close loop with a condjmp instruction without variant in a condition,
-    --   but we need to check if there's a source depending on a loop variant
+  isLoopVariantAt : (i : Fin n) ->
+                  (initRegs : VectValue n) ->
+                  AreWinded' savedRegs gs initRegs uc initUc =>
+                  (finalRegs : VectValue n) ->
+                  CanUnwindAll initRegs gs finalRegs =>
+                  Bool
+  isLoopVariantAt FZ
+                (ir :: initRegs)
+                @{AreWindedStep' @{isWinded'} areWinded''}
+                (fr :: finalRegs)
+                @{CanUnwindAllStep @{canUnwind} canUnwindAll'} = isUndetIDependsOnlyOnSelf ir @{isWinded'} fr
+  isLoopVariantAt (FS i')
+                (_ :: initRegs)
+                @{AreWindedStep' areWinded''}
+                (_ :: finalRegs)
+                @{CanUnwindAllStep canUnwindAll'} = isLoopVariantAt i' initRegs @{areWinded''} finalRegs
 
   namespace Condition
     public export
-    data IsPossibleWithoutVariant : IsCondjmpPossible closeDec finalRegs canFinish -> Type where
-      ItIsItIsPossibleNoClose : IsPossibleWithoutVariant $ ItIsPossibleNoClose @{so}
-      -- TODO: 1 more constructor when todo above is solved
+    getVType  : (vs : VectValue n) -> HasUndetAt i vs -> VType
+    getVType (JustV {vTy} _ :: _) HasUndetAtHere = vTy
+    getVType (_ :: vs) (HasUndetAtThere prf') = getVType vs prf'
 
     public export
-    data PrimaryPredicate : (vTy : VType) -> Type where
-      LessThan : PrimaryPredicate I
-      Equal : PrimaryPredicate I
-      LessThanOrEqual : PrimaryPredicate I
-      IsTrue : PrimaryPredicate B
-
-    public export
-    data PredicateConstant : PrimaryPredicate vTy -> Type where
-      NoConstant : PredicateConstant IsTrue
-      Constant : {0 pp : PrimaryPredicate I} -> Nat -> PredicateConstant pp
-
-    public export
-    getVType : {vs : _} -> HasUndet vs -> VType
-    getVType {vs = (JustV {vTy} _ :: _)} HasUndetHere = vTy
-    getVType (HasUndetThere prf') = getVType prf'
-  
-    public export
-    data Condition : {0 closeDec : CloseLoopDecision {n} remSrcs ols} ->
+    data Condition : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                      (finalRegs : VectValue n) ->
-                     {0 canFinish : CanFinish closeDec finalRegs} ->
-                     IsCondjmpPossible closeDec finalRegs canFinish ->
+                     (canFinish : CanFinish closeDec finalRegs) ->
                      Type where
-      ConditionAny : IsPossibleWithoutVariant possiblePrf =>
-                     (condRegIdx : HasUndet finalRegs) ->
-                     (pp : PrimaryPredicate (getVType condRegIdx)) ->
+      ConditionAny : (regIdx : Fin n) ->
+                     (undetPrf : HasUndetAt regIdx finalRegs) =>
+                     (pp : PrimaryPredicate (getVType finalRegs undetPrf)) ->
                      PredicateConstant pp ->
                      (neg : Bool) ->
-                     Condition finalRegs possiblePrf
-      ConditionVar : {0 hasLoopVariant : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll} ->
-                     (varRegIdx : HasLoopVariant initRegs areWinded' finalRegs canUnwindAll) ->
+                     Condition {remSrcs} {ols} NoClose finalRegs canFinish
+      ConditionVar : (regIdx : Fin n) ->
+                     So (isLoopVariantAt regIdx initRegs @{areWinded'} finalRegs @{canUnwindAll}) =>
+                     HasTypeAt regIdx I finalRegs =>  -- Helping
                      (pp : PrimaryPredicate I) ->
                      PredicateConstant pp ->
                      (neg : Bool) ->
-                     Condition finalRegs $
-                               ItIsPossibleDoCloseWithVariant {n}
-                                                              {ols}
-                                                              {savedRegs}
-                                                              {savedSrcs}
-                                                              {so}
-                                                              @{hasLoopVariant}
+                     Condition (DoClose {n} {ols} $ L savedRegs
+                                                      savedSrcs
+                                                      savedUc
+                                                      gs
+                                                      initRegs
+                                                      @{TheyAreWinded @{areWinded'}})
+                               finalRegs
+                               (MustFinishLoop @{canUnwindAll} @{so})
+      -- TODO: it is possible to close loop with a condjmp instruction without variant in a condition,
+      --   but we need to check if there's a source depending on a loop variant
 
 public export
 data EdgeDecision : (closeDec : CloseLoopDecision {n} remSrcs ols) ->
                     (finalRegs : VectValue n) ->
-                    CanFinish closeDec finalRegs ->
+                    (canFinish : CanFinish closeDec finalRegs) ->
                     Type where
   Exit : IsExitPossible closeDec =>
          EdgeDecision closeDec finalRegs canFinish
   Jmp : IsJmpPossible closeDec =>
         EdgeDecision closeDec finalRegs canFinish
-  Condjmp : (possiblePrf : IsCondjmpPossible closeDec finalRegs canFinish) =>
-            Condition finalRegs possiblePrf ->
+  Condjmp : Condition closeDec finalRegs canFinish ->
             EdgeDecision closeDec finalRegs canFinish
 
 %name EdgeDecision edgeDec
@@ -166,8 +127,11 @@ makeEdges : {closeDec : CloseLoopDecision {n} _ _} ->
             (finalRegs : VectValue n) ->
             Result n
 makeEdges Exit srcs finalRegs = R Nothing Nothing _ srcs
-makeEdges {closeDec = NoClose} Jmp srcs finalRegs = R Nothing Nothing _ (Src finalRegs :: srcs)
+makeEdges {closeDec = NoClose} Jmp srcs finalRegs = R Nothing Nothing _ (Src finalRegs Nothing :: srcs)
 makeEdges {closeDec = (DoClose _)} Jmp srcs finalRegs = R Nothing Nothing _ srcs
-makeEdges {closeDec = NoClose} (Condjmp _) srcs finalRegs = R (Just $ Src finalRegs) (Just $ Src finalRegs) _ srcs
-makeEdges {closeDec = (DoClose _)} (Condjmp _) srcs finalRegs = R Nothing Nothing _ (Src finalRegs :: srcs)
+makeEdges {closeDec = NoClose} (Condjmp $ ConditionAny regIdx pp c neg) srcs finalRegs =
+  let src : ?; src = Src finalRegs (Just $ CD regIdx pp c neg) in R (Just src) (Just src)  _ srcs
+makeEdges {closeDec = (DoClose $ L savedRegs savedSrcs savedUc gs initRegs)} (Condjmp $ ConditionVar regIdx pp c neg) srcs finalRegs =
+  R Nothing Nothing _ (Src finalRegs Nothing :: srcs)
+makeEdges _ _ _ = trace "Unreachable makeEdges" $ R Nothing Nothing _ []
 

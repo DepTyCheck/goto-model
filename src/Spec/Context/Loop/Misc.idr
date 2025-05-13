@@ -152,15 +152,15 @@ getIndex (JustV $ Op Add (Undet I idx) (Det $ RawI a)) @{ItIsMonotonic1} = idx
 getIndex (JustV $ Op Add (Det $ RawI a) (Undet I idx)) @{ItIsMonotonic2} = idx
 
 public export
-isMonotonicValue : Value -> Bool
-isMonotonicValue (JustV $ Op Add (Undet I idx) (Det $ RawI a)) = True
-isMonotonicValue (JustV $ Op Add (Det $ RawI a) (Undet I idx)) = True
-isMonotonicValue _ = False
+isMonotonic : Value -> Bool
+isMonotonic (JustV $ Op Add (Undet I idx) (Det $ RawI a)) = True
+isMonotonic (JustV $ Op Add (Det $ RawI a) (Undet I idx)) = True
+isMonotonic _ = False
 
 public export
 hasMonotonicValue : (regs : VectValue n) -> Bool
 hasMonotonicValue [] = False
-hasMonotonicValue (r :: regs) = isMonotonicValue r || hasMonotonicValue regs
+hasMonotonicValue (r :: regs) = isMonotonic r || hasMonotonicValue regs
     
 
 

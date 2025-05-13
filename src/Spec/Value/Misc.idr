@@ -31,6 +31,11 @@ hasUndet [] = False
 hasUndet (v :: vs) = isUndet v || hasUndet vs
 
 public export
+hasUndetAt : Fin n -> VectValue n -> Bool
+hasUndetAt FZ (v :: vs) = isUndet v
+hasUndetAt (FS i') (v :: vs) = hasUndetAt i' vs
+
+public export
 isUndetI : Value -> Bool
 isUndetI v = isUndet v && hasVTy I v
 

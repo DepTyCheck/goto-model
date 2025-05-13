@@ -20,5 +20,5 @@ windContext : (src : Source n)
            -> (openDec : OpenLoopDecision src ols b)
            => Result n
 windContext src remSrcs' uc ols @{NoNewLoop} = R src _ remSrcs' uc ols
-windContext src remSrcs' uc [] @{OneNewLoop {gs} {initRegs} {initUc}} = R (Src initRegs) _ [] initUc [L src.registers remSrcs' uc gs initRegs]
+windContext src remSrcs' uc [] @{OneNewLoop {gs} {initRegs} {initUc}} = R (Src initRegs Nothing) _ [] initUc [L src.registers remSrcs' uc gs initRegs]
 
