@@ -7,12 +7,12 @@ import Data.String
 
 public export
 Show (Source n) where
-  show (Src vs) = "(\{show vs})"
+  show (Src vs _) = "(\{show vs})"
 
 public export
 Show (MaybeSource n) where
   show Nothing = "(Nothing)"
-  show (Just $ Src vs) = "(Just \{show vs}\)"
+  show (Just $ Src vs _) = "(Just \{show vs}\)"
 
 public export
 Show (VectSource {}) where
