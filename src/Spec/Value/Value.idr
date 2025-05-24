@@ -32,21 +32,21 @@ data RawValue : VType -> Type where
 %name RawValue rawV
 
 public export
-data VExpr : VType -> Bool -> Type where
-  Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr vTy True
-  Undet : (vTy : _) -> (idx : Nat) -> VExpr vTy False
+data VExpr : (vTy : VType) -> (isDet : Bool) -> (c : Nat) -> Type where
+  Det : {vTy : _} -> (rawV : RawValue vTy) -> VExpr vTy True Z
+  Undet : (vTy : _) -> (idx : Nat) -> VExpr vTy False Z
   Op : (vop : ValueOp) ->
-       {vTyL, vTyR : _} -> {isDetL, isDetR : _} ->
-       VExpr vTyL isDetL -> VExpr vTyR isDetR ->
-       IsOpVTypes vop vTyL vTyR vTy => BoolAnd isDetL isDetR isDet =>
-       VExpr vTy isDet
+       {vTyL, vTyR : _} -> {isDetL, isDetR : _} -> {cL, cR : _} ->
+       VExpr vTyL isDetL cL -> VExpr vTyR isDetR cR ->
+       IsOpVTypes vop vTyL vTyR vTy => BoolAnd isDetL isDetR isDet => NatSum cL cR c =>
+       VExpr vTy isDet c
 
 %name VExpr vExpr
 
 public export
 data Value : Type where
   Unkwn : Value
-  JustV : {vTy : _} -> {isDet : _} -> VExpr vTy isDet -> Value
+  JustV : {vTy : _} -> {isDet : _} -> {c : _} -> VExpr vTy isDet c -> Value
 
 %name Value v
 
@@ -64,10 +64,25 @@ data Index : (i : Fin n) -> (vs : VectValue n) -> Value -> Type where
   IndexStep : Index i' vs v -> Index (FS i') (v' :: vs) v
 
 public export
-data HasType : (vTy : VType) -> (vs : VectValue n) -> VExpr vTy isDet -> Type where
+data HasType : (vTy : VType) -> (cLim : Nat) -> (vs : VectValue n) -> c `LTE` cLim => VExpr vTy isDet c -> Type where
   [search vTy vs]
-  HasTypeHere : HasType vTy (JustV {vTy} vExpr :: vs') vExpr
-  HasTypeThere : HasType vTy vs' v -> HasType vTy (v1 :: vs') v
+  HasTypeHere : HasType vTy cLim (JustV {vTy} {c} vExpr :: vs') @{ltePrf} vExpr
+  HasTypeThere : HasType vTy cLim vs' @{ltePrf} v -> HasType vTy cLim (v1 :: vs') @{ltePrf} v
+
+public export
+data HasTypeAt : (i : Fin n) -> (vTy : VType) -> (vs : VectValue n) -> Type where
+  HasTypeAtHere : HasTypeAt FZ vTy ((JustV {vTy} vExpr) :: vs)
+  HasTypeAtThere : HasTypeAt i' vTy vs -> HasTypeAt (FS i') vTy (v :: vs)
+
+public export
+data HasUndet : (vs : VectValue n) -> Type where
+  HasUndetHere : HasUndet ((JustV {isDet = False} vExpr) :: vs)
+  HasUndetThere : HasUndet vs -> HasUndet (v :: vs)
+
+public export
+data HasUndetAt : (i : Fin n) -> (vs : VectValue n) -> Type where
+  HasUndetAtHere : HasUndetAt FZ ((JustV {isDet = False} vExpr) :: vs)
+  HasUndetAtThere : HasUndetAt i' vs -> HasUndetAt (FS i') (v :: vs)
 
 public export
 data ReplaceAt : (i : Fin n) -> (v : Value) -> (vs : VectValue n) -> VectValue n -> Type where
@@ -81,11 +96,11 @@ data Duplicate : (dst : Fin n) -> (src : Fin n) -> (vs : VectValue n) -> VectVal
   JustDup : Index src vs v => ReplaceAt dst v vs newVs => Duplicate dst src vs newVs
 
 public export
-data Produce : ValueOp -> VectValue n -> Value -> Type where
-  ProduceOp : HasType vTyL regs {isDet=isDetL} vExprL =>
+data Produce : (vop : ValueOp) -> (cLim : Nat) -> (regs : VectValue n) -> Value -> Type where
+  ProduceOp : HasType vTyL cLim regs {isDet=isDetL} {c=cL} @{ltePrfL} vExprL =>
               (ovtPrf : IsOpVTypes vop vTyL vTyR vTy) =>
-              HasType vTyR regs {isDet=isDetR} vExprR =>
-              Produce vop regs (JustV $ Op vop vExprL vExprR @{ovtPrf} @{snd $ boolAnd isDetL isDetR})
+              HasType vTyR (cLim `minus` cL) regs {isDet=isDetR} {c=cR} @{ltePrfR} vExprR =>
+              Produce vop cLim regs (JustV $ Op vop vExprL vExprR @{ovtPrf} @{snd $ boolAnd isDetL isDetR} @{snd $ natSum01 cL cR})
 
 public export
 index : Fin n -> VectValue n -> Value

@@ -16,7 +16,7 @@ langversion >= 0.7.0
 depends = deptycheck
 
 -- modules to install
--- modules = Gens.Auto.Derivation.Test
+-- modules = Gens.Auto.Derivation.Program
 
 -- main file (i.e. file to load at REPL)
 executable = gen

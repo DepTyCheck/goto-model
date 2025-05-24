@@ -14,9 +14,9 @@ Show ValueOp where
   show Or = "Or"
 
 public export
-Show (VExpr mVTy isDet) where
-  show (Det (RawI i)) = "D(I \{show i})"
-  show (Det (RawB b)) = "D(B \{show b})"
+Show (VExpr mVTy isDet c) where
+  show (Det $ RawI i) = "D(I \{show i})"
+  show (Det $ RawB b) = "D(B \{show b})"
   show (Undet vTy idx) = "U(\{show vTy}, \{show idx})"
   show (Op vop vExprL vExprR) = "(\{show vExprL} \{show vop} \{show vExprR})"
 
@@ -35,7 +35,7 @@ Show (VectValue n) where
       show' (v1 :: v2 :: vs'') = "\{show v1}, " <+> show' (v2 :: vs'')
 
 public export
-toIndex : HasType vTy vs vExpr -> Nat
+toIndex : HasType vTy cLim vs @{ltePrf} vExpr -> Nat
 toIndex HasTypeHere = Z
 toIndex (HasTypeThere hasTy') = S $ toIndex hasTy'
 

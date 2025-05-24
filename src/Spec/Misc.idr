@@ -28,31 +28,59 @@ namespace Bool
   boolAnd True False = (False ** AnyAndFalse)
   boolAnd True True = (True ** TrueAndTrue)
 
-  public export
-  data VectBool : Nat -> Type where
-    Nil : VectBool 0
-    (::) : Bool -> VectBool n -> VectBool (S n)
+  namespace Maybe
+    public export
+    data MaybeBool : Type where
+      Nothing : MaybeBool
+      Just : Bool -> MaybeBool
 
-  public export
-  length : VectBool n -> Nat
-  length [] = 0
-  length (_ :: vs) = S $ length vs
+    public export
+    data NotJustFalse : MaybeBool -> Type where
+      ItIsJustTrue : NotJustFalse (Just True)
+      ItIsNothing : NotJustFalse Nothing
 
-  public export
-  lengthIsCorrect : (vs : VectBool n) -> n = length vs
-  lengthIsCorrect [] = Refl
-  lengthIsCorrect (_ :: vs) = cong S $ lengthIsCorrect vs
+  namespace Vect
+    public export
+    data VectBool : Nat -> Type where
+      Nil : VectBool 0
+      (::) : Bool -> VectBool n -> VectBool (S n)
 
-  public export
-  data HasTrue : VectBool n -> Type where
-    Here : HasTrue (True :: bs)
-    There : HasTrue bs -> HasTrue (b :: bs)
+    public export
+    length : VectBool n -> Nat
+    length [] = 0
+    length (_ :: vs) = S $ length vs
+
+    public export
+    lengthIsCorrect : (vs : VectBool n) -> n = length vs
+    lengthIsCorrect [] = Refl
+    lengthIsCorrect (_ :: vs) = cong S $ lengthIsCorrect vs
+
+    public export
+    data HasTrue : VectBool n -> Type where
+      Here : HasTrue (True :: bs)
+      There : HasTrue bs -> HasTrue (b :: bs)
+
+    public export
+    Uninhabited (HasTrue []) where
+      uninhabited _ impossible
+
+    public export
+    hasTrueIsSucc : {bs : VectBool n} -> HasTrue bs -> IsSucc n
+    hasTrueIsSucc {bs = True :: _} Here = ItIsSucc
+    hasTrueIsSucc {bs = _ :: _} (There _) = ItIsSucc
 
 namespace Nat
   public export
   data NatSum : Nat -> Nat -> Nat -> Type where
     NatSumBase : NatSum a Z a
     NatSumStep : NatSum a b c -> NatSum a (S b) (S c)
+
+  public export
+  natSum01 : (a : Nat) -> (b : Nat) -> (c ** NatSum a b c)
+  natSum01 a 0 = (a ** NatSumBase)
+  natSum01 a (S b') = do
+    let rec : ?; rec = natSum01 a b'
+    (_ ** NatSumStep $ snd rec)
 
   public export
   data NotSame : Nat -> Nat -> Type where
